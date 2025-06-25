@@ -38,3 +38,12 @@ websockets
 pytest
 pytest-asyncio # For testing async code
 requests # For testing API endpoints (alternative to httpx for sync tests)
+
+# Google Cloud libraries
+google-cloud-aiplatform
+google-cloud-secret-manager
+google-cloud-logging
+google-cloud-monitoring
+
+# Production dependencies
+gunicorn
