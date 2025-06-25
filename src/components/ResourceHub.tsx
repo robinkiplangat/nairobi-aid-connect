@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -10,131 +9,123 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
+
+// Matches backend schemas.Resource
+interface ResourceItem {
+  resource_id: string;
+  title: string;
+  content: string; // Could be plain text, markdown, or simple HTML. Assume plain text for now.
+  category: string;
+  last_updated: string; // ISO string
+}
+
+interface GroupedResources {
+  [category: string]: ResourceItem[];
+}
 
 export const ResourceHub: React.FC = () => {
-  const emergencyContacts = [
-    {
-      name: "Law Society of Kenya (LSK)",
-      number: "0800720434"
-    },
-    {
-      name: "Defenders Coalition",
-      number: "0716200100"
-    },
-    {
-      name: "Independent Medico-Legal Unit (IMLU)",
-      number: "0706162795 / 0800720627"
-    },
-    {
-      name: "Kenya National Commission on Human Rights (KNCHR)",
-      number: "08007260627"
-    },
-    {
-      name: "Amnesty International Kenya",
-      number: "0759464346"
-    },
-    {
-      name: "Civic Freedoms Forum",
-      number: "07283033864"
-    },
-    {
-      name: "Kenya Human Rights Commission (KHRC)",number: "0728606583"
+  const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [groupedResources, setGroupedResources] = useState<GroupedResources>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && resources.length === 0 && !isLoading && !error) { // Fetch only if open and not already fetched/loading/errored
+      setIsLoading(true);
+      setError(null);
+      fetch('/api/v1/content/resources')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch resources');
+          }
+          return response.json();
+        })
+        .then((data: ResourceItem[]) => {
+          setResources(data);
+          // Group resources by category
+          const grouped = data.reduce((acc, resource) => {
+            const category = resource.category || 'Other';
+            if (!acc[category]) {
+              acc[category] = [];
+            }
+            acc[category].push(resource);
+            return acc;
+          }, {} as GroupedResources);
+          setGroupedResources(grouped);
+          setIsLoading(false);
+        })
+        .catch(err => {
+          console.error("Error fetching resources:", err);
+          setError(err.message || "Could not load resources.");
+          setIsLoading(false);
+          toast({ title: "Resources Error", description: "Could not load resources.", variant: "destructive" });
+        });
     }
-  ];
+  }, [isOpen, resources.length, isLoading, error, toast]);
 
-  const safetyTips = [
-    'Stay hydrated and carry water with you',
-    'Keep emergency contacts easily accessible',
-    'Stay in groups when possible',
-    'Avoid confrontational situations',
-    'Know the location of nearest safe zones',
-    'Keep your phone charged',
-  ];
+  const renderContent = (content: string) => {
+    // Basic check for simple list-like content
+    if (content.includes('\\n- ')) {
+        return (
+            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                {content.split('\\n- ').map((item, index) => item.trim() && <li key={index}>{item.trim().replace(/^- /, '')}</li>)}
+            </ul>
+        );
+    }
+    // TODO: Could add markdown parsing here if content is markdown
+    return <p className="text-sm text-gray-700 whitespace-pre-wrap">{content}</p>;
+  };
 
-  const firstAidBasics = [
-    'Check for responsiveness and breathing',
-    'Call for help immediately',
-    'Apply pressure to bleeding wounds',
-    'Do not move someone with potential spinal injury',
-    'Place unconscious but breathing person in recovery position',
-    'Learn CPR if possible',
-  ];
 
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm">
           Resource Hub
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
         <SheetHeader>
           <SheetTitle>Resource Hub</SheetTitle>
           <SheetDescription>
-            Essential information and emergency contacts for Nairobi
+            Essential information and emergency contacts.
           </SheetDescription>
         </SheetHeader>
         
-        <ScrollArea className="h-[calc(100vh-120px)] mt-6">
-          <div className="space-y-6">
-            {/* Emergency Contacts */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Emergency Contacts</h3>
-              <div className="space-y-2">
-                {emergencyContacts.map((contact, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium">{contact.name}</span>
-                    <a 
-                      href={`tel:${contact.number}`}
-                      className="text-blue-600 hover:text-blue-800 font-mono"
-                    >
-                      {contact.number}
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <ScrollArea className="flex-1 mt-6 pr-3"> {/* Added pr-3 for scrollbar */}
+          {isLoading && <p>Loading resources...</p>}
+          {error && <p className="text-red-500">Error: {error}</p>}
+          {!isLoading && !error && Object.keys(groupedResources).length === 0 && (
+            <p>No resources available at the moment.</p>
+          )}
 
-            {/* Safety Tips */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Safety Tips</h3>
-              <div className="space-y-2">
-                {safetyTips.map((tip, index) => (
-                  <div key={index} className="flex items-start p-3 bg-blue-50 rounded-lg">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span className="text-sm">{tip}</span>
+          <Accordion type="multiple" className="w-full">
+            {Object.entries(groupedResources).map(([category, items]) => (
+              <AccordionItem value={category} key={category}>
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  {category} ({items.length})
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    {items.map((resource) => (
+                      <div key={resource.resource_id} className="p-3 bg-gray-50 rounded-lg shadow-sm">
+                        <h4 className="font-medium text-gray-900 mb-1">{resource.title}</h4>
+                        {renderContent(resource.content)}
+                        <p className="text-xs text-gray-400 mt-2">
+                          Last updated: {new Date(resource.last_updated).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* First Aid Basics */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">First Aid Basics</h3>
-              <div className="space-y-2">
-                {firstAidBasics.map((step, index) => (
-                  <div key={index} className="flex items-start p-3 bg-red-50 rounded-lg">
-                    <span className="text-red-600 mr-2 font-bold">{index + 1}.</span>
-                    <span className="text-sm">{step}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Legal Rights */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Know Your Rights</h3>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <ul className="text-sm space-y-2">
-                  <li>• Right to peaceful assembly and demonstration</li>
-                  <li>• Right to remain silent if detained</li>
-                  <li>• Right to legal representation</li>
-                  <li>• Right to medical attention if injured</li>
-                  <li>• Right to contact family/lawyer if arrested</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </ScrollArea>
       </SheetContent>
     </Sheet>

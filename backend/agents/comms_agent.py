@@ -84,6 +84,8 @@ class CommsAgent:
         chat_established_message = schemas.ChatSessionEstablished(
             chat_room_id=chat_room_id,
             assignment_id=assignment_data.assignment_id,
+            request_id=assignment_data.request_id, # Pass through from MatchAssignment
+            volunteer_id=assignment_data.volunteer_id, # Pass through from MatchAssignment
             requester_token=assignment_data.requester_token,
             volunteer_token=assignment_data.volunteer_token
             # timestamp is auto-generated

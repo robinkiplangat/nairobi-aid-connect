@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 
 from ..models import schemas
 from ..services.database import db_service # Assuming global instance
@@ -9,8 +10,45 @@ logger = logging.getLogger(__name__)
 
 class VerificationAgent:
     def __init__(self):
-        # Dependencies can be injected if a more complex DI system is used.
-        pass
+        # For MVP: In-memory session store. Not suitable for production (stateful, doesn't scale).
+        # Production would use Redis or a DB for session_token -> {volunteer_id, expiry}.
+        self.active_volunteer_sessions: dict[str, dict] = {} # token -> {"volunteer_id": "...", "expires_at": datetime}
+        logger.info("VerificationAgent initialized with in-memory session store.")
+
+    async def _generate_session_token(self, volunteer_id: str) -> str:
+        token = str(uuid.uuid4())
+        expires_at = datetime.utcnow() + timedelta(hours=settings.VOLUNTEER_SESSION_TIMEOUT_HOURS) # e.g., 4 hours
+        self.active_volunteer_sessions[token] = {
+            "volunteer_id": volunteer_id,
+            "expires_at": expires_at
+        }
+        # Periodically clean up expired tokens (simple approach)
+        self._cleanup_expired_tokens()
+        logger.info(f"Generated session token for volunteer {volunteer_id}, expires at {expires_at}")
+        return token
+
+    def _cleanup_expired_tokens(self):
+        now = datetime.utcnow()
+        expired_tokens = [
+            token for token, session in self.active_volunteer_sessions.items()
+            if session["expires_at"] < now
+        ]
+        for token in expired_tokens:
+            del self.active_volunteer_sessions[token]
+        if expired_tokens:
+            logger.info(f"Cleaned up {len(expired_tokens)} expired volunteer session tokens.")
+
+    async def validate_session_token(self, token: str) -> Optional[str]:
+        """Validates a session token and returns the volunteer_id if valid, else None."""
+        session = self.active_volunteer_sessions.get(token)
+        if session:
+            if session["expires_at"] > datetime.utcnow():
+                return session["volunteer_id"]
+            else:
+                # Token expired, remove it
+                del self.active_volunteer_sessions[token]
+                logger.info(f"Session token {token} expired.")
+        return None
 
     async def handle_verification_request(self, payload: schemas.VolunteerVerificationPayload) -> schemas.GenericResponse:
         """
@@ -95,11 +133,21 @@ class VerificationAgent:
             # Could add to a retry queue. For now, log and proceed with success response to user.
             # The API response should still reflect successful verification if DB update was okay.
 
+        # Generate session token
+        session_token = await self._generate_session_token(str(volunteer.volunteer_id))
+
+        response_details = volunteer_status_message.model_dump()
+        response_details["session_token"] = session_token
+        response_details["volunteer_id"] = str(volunteer.volunteer_id)
+
+
         return schemas.GenericResponse(
             success=True,
             message="Volunteer successfully verified and status updated.",
-            details=volunteer_status_message.model_dump()
+            details=response_details
         )
+
+from ..services.config import settings # Import settings for session timeout
 
 # Global instance
 verification_agent = VerificationAgent()

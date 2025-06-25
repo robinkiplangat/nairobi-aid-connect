@@ -46,6 +46,8 @@ class MatchAssignment(BaseModel):
 class ChatSessionEstablished(BaseModel):
     chat_room_id: str
     assignment_id: str
+    request_id: str # Added for routing to requester client
+    volunteer_id: str # Added for routing to volunteer client
     requester_token: str # To be used by the requester to join the chat
     volunteer_token: str # To be used by the volunteer to join the chat
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -54,8 +56,9 @@ class ChatSessionEstablished(BaseModel):
 
 class DirectHelpRequestPayload(BaseModel):
     request_type: Literal["Medical", "Legal", "Shelter"]
-    location_text: str
-    original_content: str
+    coordinates: Optional[Coordinates] = None # User selected lat/lng from map
+    location_text: Optional[str] = None # Optional text description of location
+    original_content: str # Description of the request, e.g., "Direct app request for Medical aid"
     # Potentially user_id or some form of identification if users are logged in
     # user_id: Optional[str] = None
 

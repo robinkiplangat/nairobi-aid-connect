@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     LOCATION_OBFUSCATION_FACTOR: float = 0.001 # Example: degree offset for privacy
     VOLUNTEER_MATCH_RADIUS_KM: float = 5.0
     CHAT_SESSION_TTL_HOURS: int = 24
+    VOLUNTEER_SESSION_TIMEOUT_HOURS: int = 4 # For volunteer HTTP session tokens
 
     # General App Settings
     APP_ENV: str = "development" # "development", "staging", "production"
