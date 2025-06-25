@@ -3,7 +3,6 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { HelpRequest } from '@/pages/Index';
-import { MapPin } from 'lucide-react';
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -19,6 +18,7 @@ interface MapComponentProps {
   selectedLocation: [number, number] | null;
   isVolunteer: boolean;
   onAcceptRequest: (requestId: string) => void;
+  isSelectingLocation?: boolean;
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
@@ -26,7 +26,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   onMapClick,
   selectedLocation,
   isVolunteer,
-  onAcceptRequest
+  onAcceptRequest,
+  isSelectingLocation = false
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -47,6 +48,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     // Handle map clicks
     map.current.on('click', (e) => {
       const { lat, lng } = e.latlng;
+      console.log('Map click event:', lat, lng);
       onMapClick([lat, lng]);
     });
 
@@ -143,7 +145,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <h2 className="text-lg font-bold text-gray-800">SOS Nairobi</h2>
         <p className="text-sm text-gray-600">Live Emergency Response Map</p>
       </div>
-      {selectedLocation && (
+      
+      {isSelectingLocation && (
+        <div className="absolute bottom-4 left-4 bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg animate-pulse">
+          <p className="text-sm">📍 Click anywhere on the map to select your location</p>
+        </div>
+      )}
+      
+      {selectedLocation && !isSelectingLocation && (
         <div className="absolute bottom-4 left-4 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg">
           <p className="text-sm">📍 Location selected. Choose help type →</p>
         </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import { MapComponent } from '@/components/MapComponent';
 import { ActionPanel } from '@/components/ActionPanel';
 import { HelpRequestModal } from '@/components/HelpRequestModal';
@@ -21,15 +22,33 @@ const Index = () => {
   const [isVolunteer, setIsVolunteer] = useState(false);
   const [activeChatSession, setActiveChatSession] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
+  const [isSelectingLocation, setIsSelectingLocation] = useState(false);
   const { toast } = useToast();
 
-  const handleMapClick = (coordinates: [number, number]) => {
-    if (showHelpModal) {
+  const handleMapClick = useCallback((coordinates: [number, number]) => {
+    console.log('Map clicked:', coordinates, 'selecting location:', isSelectingLocation);
+    
+    if (isSelectingLocation) {
       setSelectedLocation(coordinates);
+      setIsSelectingLocation(false);
+      
+      toast({
+        title: "Location Selected",
+        description: "Now choose the type of help you need.",
+      });
     }
-  };
+  }, [isSelectingLocation, toast]);
 
-  const handleHelpRequest = (type: 'Medical' | 'Legal' | 'Shelter') => {
+  const handleNeedHelp = useCallback(() => {
+    console.log('Need help clicked');
+    setSelectedLocation(null);
+    setIsSelectingLocation(true);
+    setShowHelpModal(true);
+  }, []);
+
+  const handleHelpRequest = useCallback((type: 'Medical' | 'Legal' | 'Shelter') => {
+    console.log('Help request submitted:', type, 'location:', selectedLocation);
+    
     if (!selectedLocation) {
       toast({
         title: "Location Required",
@@ -56,6 +75,7 @@ const Index = () => {
     setHelpRequests(prev => [...prev, newRequest]);
     setShowHelpModal(false);
     setSelectedLocation(null);
+    setIsSelectingLocation(false);
 
     // Start chat session for help seeker
     const sessionId = `session_${Date.now()}`;
@@ -65,9 +85,23 @@ const Index = () => {
       title: "Help Request Sent",
       description: "A volunteer will contact you securely in this window.",
     });
-  };
+  }, [selectedLocation, toast]);
 
-  const handleVolunteerVerification = (code: string) => {
+  const handleProvideHelp = useCallback(() => {
+    console.log('Provide help clicked, is volunteer:', isVolunteer);
+    if (isVolunteer) {
+      toast({
+        title: "You're already verified",
+        description: "Click on any help request on the map to assist.",
+      });
+    } else {
+      setShowVolunteerModal(true);
+    }
+  }, [isVolunteer, toast]);
+
+  const handleVolunteerVerification = useCallback((code: string) => {
+    console.log('Volunteer verification attempted with code:', code);
+    
     // Simple verification - in production this would call the backend
     const validCodes = ['VOLUNTEER2024', 'MEDIC123', 'LEGAL456'];
     
@@ -85,9 +119,11 @@ const Index = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [toast]);
 
-  const handleAcceptRequest = (requestId: string) => {
+  const handleAcceptRequest = useCallback((requestId: string) => {
+    console.log('Request accepted:', requestId);
+    
     setHelpRequests(prev => 
       prev.filter(req => req.id !== requestId)
     );
@@ -100,7 +136,19 @@ const Index = () => {
       title: "Request Accepted",
       description: "You can now communicate with the person in need.",
     });
-  };
+  }, [toast]);
+
+  const handleCloseHelpModal = useCallback(() => {
+    console.log('Closing help modal');
+    setShowHelpModal(false);
+    setSelectedLocation(null);
+    setIsSelectingLocation(false);
+  }, []);
+
+  const handleCloseVolunteerModal = useCallback(() => {
+    console.log('Closing volunteer modal');
+    setShowVolunteerModal(false);
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
@@ -112,14 +160,15 @@ const Index = () => {
           selectedLocation={selectedLocation}
           isVolunteer={isVolunteer}
           onAcceptRequest={handleAcceptRequest}
+          isSelectingLocation={isSelectingLocation}
         />
       </div>
 
       {/* Action Panel */}
       <div className="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg flex flex-col overflow-y-auto">
         <ActionPanel
-          onNeedHelp={() => setShowHelpModal(true)}
-          onProvideHelp={() => setShowVolunteerModal(true)}
+          onNeedHelp={handleNeedHelp}
+          onProvideHelp={handleProvideHelp}
           isVolunteer={isVolunteer}
         />
       </div>
@@ -127,17 +176,14 @@ const Index = () => {
       {/* Modals */}
       <HelpRequestModal
         isOpen={showHelpModal}
-        onClose={() => {
-          setShowHelpModal(false);
-          setSelectedLocation(null);
-        }}
+        onClose={handleCloseHelpModal}
         onSubmit={handleHelpRequest}
         hasLocation={!!selectedLocation}
       />
 
       <VolunteerModal
         isOpen={showVolunteerModal}
-        onClose={() => setShowVolunteerModal(false)}
+        onClose={handleCloseVolunteerModal}
         onVerify={handleVolunteerVerification}
       />
 
