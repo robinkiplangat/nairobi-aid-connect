@@ -101,3 +101,50 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure Leaflet map doesn't interfere with modals */
+@layer components {
+  .leaflet-container {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .leaflet-control-container {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Ensure modal overlays are above everything */
+  [data-radix-dialog-overlay] {
+    z-index: 150 !important;
+  }
+  
+  [data-radix-dialog-content] {
+    z-index: 200 !important;
+  }
+}
+
+/* Force all Leaflet layers and controls to a low z-index */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-control,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-marker-icon,
+.leaflet-popup,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-control-container {
+  z-index: 10 !important;
+}
+
+/* Ensure modal overlays and content are always on top */
+[data-radix-dialog-overlay] {
+  z-index: 10000 !important;
+  position: fixed !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 10001 !important;
+  position: fixed !important;
+}

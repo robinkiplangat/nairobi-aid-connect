@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -143,12 +142,21 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   useEffect(() => {
     if (map.current) {
       if (mapIsInteractive) {
+        // Enable all interactions
         map.current.keyboard?.enable();
-        // You might need to enable other interactions if you disable more than keyboard
-        // e.g., map.current.dragging.enable(), map.current.touchZoom.enable(), etc.
+        map.current.dragging?.enable();
+        map.current.touchZoom?.enable();
+        map.current.doubleClickZoom?.enable();
+        map.current.scrollWheelZoom?.enable();
+        map.current.boxZoom?.enable();
       } else {
+        // Disable all interactions to prevent focus stealing
         map.current.keyboard?.disable();
-        // e.g., map.current.dragging.disable(), map.current.touchZoom.disable(), etc.
+        map.current.dragging?.disable();
+        map.current.touchZoom?.disable();
+        map.current.doubleClickZoom?.disable();
+        map.current.scrollWheelZoom?.disable();
+        map.current.boxZoom?.disable();
       }
     }
   }, [mapIsInteractive]);

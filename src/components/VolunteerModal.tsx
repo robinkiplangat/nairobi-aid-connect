@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,16 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
   onVerify
 }) => {
   const [code, setCode] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +48,7 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-[200]" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-center">Volunteer Verification</DialogTitle>
           <DialogDescription className="text-center text-gray-600 pt-2">
@@ -53,12 +62,14 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
               Enter your pre-shared verification code:
             </label>
             <Input
+              ref={inputRef}
               id="verification-code"
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Verification code"
               className="w-full"
+              autoComplete="off"
             />
           </div>
           
