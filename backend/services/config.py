@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
-    REDIS_PASSWORD: Optional[str] = None # Use Optional[str] in newer Pydantic/Python
+    REDIS_USERNAME: Optional[str] = "default"
+    REDIS_PASSWORD: Optional[str] = None
 
     # API Keys for External Services (placeholders)
     TWITTER_BEARER_TOKEN: Optional[str] = "YOUR_TWITTER_BEARER_TOKEN_HERE" # Replace with actual token via .env
