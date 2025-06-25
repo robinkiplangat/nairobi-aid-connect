@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOS Nairobi</title>
+    
+    <!-- Chosen Palette: Calm Response -->
+    <!-- Application Structure Plan: A responsive, two-column dashboard layout based on the PRD's wireframe. The left column features a large interactive map (Leaflet.js), which is the primary interface for visualizing needs. The right column serves as a static action panel containing the main user triggers ('Need Help', 'Provide Help'), a real-time update feed, and a resource hub. This structure was chosen because it separates the dynamic, spatial information (the map) from the static controls and secondary information, providing a clear, intuitive user experience that minimizes cognitive load during a crisis. On mobile, the columns stack vertically for easy scrolling. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Geospatial location of help requests. Goal: Show need hotspots. Viz/Method: Interactive Map (Leaflet.js). Interaction: Users tap to place a request pin; volunteers click pins to accept. Justification: A map is the most intuitive way to represent and interact with location-based data.
+        - Report Info: User flows for requesting/providing help. Goal: Guide users through a multi-step process. Viz/Method: HTML/CSS Modals. Interaction: Users click buttons within the modal to progress. Justification: Modals overlay the main UI, focusing the user on a single task without losing context.
+        - Report Info: Secure communication. Goal: Provide a space for anonymous chat. Viz/Method: Mock chat interface using styled HTML divs. Interaction: The interface appears upon successful connection. Justification: Simulates the end-goal feature within the frontend MVP.
+        - Report Info: Real-time updates & resources. Goal: Inform users. Viz/Method: Styled HTML lists/text blocks. Interaction: Scrolling feed, clickable link for resource library. Justification: Standard, easily digestible format for textual information.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .leaflet-container {
+            background: #f0f4f8;
+        }
+        .custom-marker-icon {
+            text-align: center;
+            line-height: 2rem;
+            font-size: 1.5rem;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .medical-ping { background-color: #ef4444; color: white; }
+        .legal-ping { background-color: #3b82f6; color: white; }
+        .shelter-ping { background-color: #16a34a; color: white; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <div id="app-container" class="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+        
+        <!-- Map Panel -->
+        <div id="map-panel" class="w-full md:w-3/5 lg:w-2/3 h-1/2 md:h-full">
+            <div id="map" class="h-full w-full"></div>
+        </div>
+
+        <!-- Action Panel -->
+        <div id="action-panel" class="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg p-4 sm:p-6 flex flex-col overflow-y-auto">
+            
+            <!-- Header -->
+            <header class="pb-4 border-b border-slate-200">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">SOS Nairobi</h1>
+                <p class="text-sm sm:text-base text-slate-500 mt-1">A secure platform for requesting and offering assistance.</p>
+            </header>
+
+            <!-- Main Actions -->
+            <div class="py-6 space-y-4">
+                <button id="need-help-btn" class="w-full bg-red-600 text-white font-bold py-3 sm:py-4 px-4 rounded-lg shadow-md hover:bg-red-700 transition-colors flex items-center justify-center space-x-2">
+                    <span>❗</span>
+                    <span>I NEED HELP</span>
+                </button>
+                <button id="provide-help-btn" class="w-full bg-blue-600 text-white font-bold py-3 sm:py-4 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                    <span>🤝</span>
+                    <span>I CAN PROVIDE HELP</span>
+                </button>
+            </div>
+            
+            <!-- Real-time Updates -->
+            <div class="flex-grow flex flex-col min-h-0">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+                    <h2 class="text-lg font-semibold text-slate-800">Real-Time Updates</h2>
+                    <a href="#" id="resource-hub-btn" class="text-sm text-blue-600 hover:underline">Resource Hub</a>
+                </div>
+                <ul id="updates-feed" class="mt-4 space-y-3 overflow-y-auto pr-2 flex-grow">
+                    <!-- Updates will be populated by JS -->
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modals Container -->
+    <div id="modal-container">
+        <!-- Need Help Modal -->
+        <div id="need-help-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg shadow-2xl p-6 sm:p-8 w-full max-w-md text-center">
+                <div id="need-help-step1">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-4">What kind of help do you need?</h3>
+                    <div class="space-y-3">
+                        <button data-help-type="Medical" class="help-type-btn w-full bg-red-100 text-red-800 font-semibold py-3 rounded-lg hover:bg-red-200 transition">Medical Assistance</button>
+                        <button data-help-type="Legal" class="help-type-btn w-full bg-blue-100 text-blue-800 font-semibold py-3 rounded-lg hover:bg-blue-200 transition">Legal Aid</button>
+                        <button data-help-type="Shelter" class="help-type-btn w-full bg-green-100 text-green-800 font-semibold py-3 rounded-lg hover:bg-green-200 transition">Safe Shelter</button>
+                    </div>
+                     <button id="need-help-cancel" class="mt-6 text-slate-500 hover:text-slate-700 text-sm">Cancel</button>
+                </div>
+                <div id="need-help-step2" class="hidden">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2">Tap Your Approximate Location</h3>
+                    <p class="text-slate-600 mb-4">For your safety, please tap on the map in your general area. Your exact location will NOT be shared.</p>
+                    <div class="bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">
+                        After tapping, this window will close. A volunteer will contact you via a secure chat on this page.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Provide Help Modal -->
+        <div id="provide-help-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg shadow-2xl p-6 sm:p-8 w-full max-w-md">
+                <h3 class="text-xl sm:text-2xl font-bold mb-4 text-center">Volunteer Verification</h3>
+                <p class="text-slate-600 mb-4 text-center">Please enter your pre-shared verification code.</p>
+                <input type="password" id="volunteer-code-input" class="w-full border border-slate-300 rounded-lg p-3 text-center text-lg tracking-widest" placeholder="******">
+                <p id="volunteer-error" class="text-red-500 text-sm mt-2 text-center h-4"></p>
+                <div class="mt-4 flex space-x-4">
+                    <button id="provide-help-cancel" class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg hover:bg-slate-300 transition">Cancel</button>
+                    <button id="volunteer-verify-btn" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">Verify</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secure Chat Modal -->
+        <div id="chat-modal" class="hidden fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-full max-w-sm">
+            <div class="bg-white rounded-xl shadow-2xl flex flex-col h-[28rem]">
+                <div class="bg-slate-700 text-white p-3 rounded-t-xl flex justify-between items-center">
+                    <h4 class="font-bold">Secure Connection</h4>
+                    <button id="close-chat-btn" class="text-2xl leading-none">&times;</button>
+                </div>
+                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto bg-slate-50 space-y-4">
+                    <!-- Chat messages here -->
+                </div>
+                <div class="p-3 border-t border-slate-200 bg-white rounded-b-xl flex space-x-2">
+                    <input type="text" id="chat-input" placeholder="Type your message..." class="flex-grow border border-slate-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="send-chat-btn" class="bg-blue-600 text-white rounded-full px-4 py-2 font-semibold hover:bg-blue-700 transition">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource Hub Modal -->
+        <div id="resource-hub-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg shadow-2xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-4 mb-4">
+                    <h3 class="text-xl sm:text-2xl font-bold">Resource Hub</h3>
+                    <button id="resource-hub-close" class="text-3xl leading-none text-slate-500 hover:text-slate-800">&times;</button>
+                </div>
+                <div id="resource-content" class="overflow-y-auto space-y-6">
+                    <!-- Content populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- DATA ---
+            const mockUpdates = [
+                { time: '5m ago', text: 'Roadblock reported near Uhuru Park. Avoid the area.' },
+                { time: '12m ago', text: 'Medical volunteers station established at All Saints Cathedral.' },
+                { time: '25m ago', text: 'Peaceful gathering reported along Kenyatta Avenue.' },
+                { time: '45m ago', text: 'Legal aid available. Check the Resource Hub for contact numbers.' },
+                { time: '1h ago', text: 'Water distribution point active at Jeevanjee Gardens.' }
+            ];
+
+            const mockResources = `
+                <div class="resource-section">
+                    <h4 class="text-lg font-bold mb-2 text-slate-900">Emergency Medical Contacts</h4>
+                    <ul class="list-disc list-inside text-slate-700 space-y-1">
+                        <li>St. John Ambulance: <a href="tel:0721225285" class="text-blue-600">0721 225 285</a></li>
+                        <li>Kenya Red Cross: <a href="tel:1199" class="text-blue-600">1199</a> (Toll-Free)</li>
+                    </ul>
+                </div>
+                <div class="resource-section">
+                    <h4 class="text-lg font-bold mb-2 text-slate-900">Legal Aid Providers</h4>
+                    <ul class="list-disc list-inside text-slate-700 space-y-1">
+                        <li>Law Society of Kenya (LSK): <a href="#" class="text-blue-600">Legal Aid Hotlines</a></li>
+                        <li>Amnesty International Kenya: <a href="#" class="text-blue-600">Contact Page</a></li>
+                        <li>Independent Medico-Legal Unit (IMLU): <a href="tel:0800721401" class="text-blue-600">0800 721 401</a> (Toll-Free)</li>
+                    </ul>
+                </div>
+                <div class="resource-section">
+                    <h4 class="text-lg font-bold mb-2 text-slate-900">Basic First Aid Tips</h4>
+                    <p class="text-slate-700"><strong>For tear gas exposure:</strong> Do NOT rub your eyes. Flush with cold water. A mixture of milk and water can also help. Move to an area with fresh air.</p>
+                    <p class="text-slate-700 mt-2"><strong>For minor wounds:</strong> Apply pressure with a clean cloth to stop bleeding. Clean the wound with water if possible. Cover with a bandage.</p>
+                </div>
+            `;
+            const VOLUNTEER_CODE = "202406";
+            let userState = {
+                isVolunteer: false,
+                isRequestingHelp: false,
+                helpType: null,
+                activeChat: false
+            };
+            let helpRequests = {};
+
+            // --- MAP INITIALIZATION ---
+            const nairobiCoords = [-1.286389, 36.817223];
+            const map = L.map('map').setView(nairobiCoords, 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // --- UI ELEMENT SELECTORS ---
+            const needHelpBtn = document.getElementById('need-help-btn');
+            const provideHelpBtn = document.getElementById('provide-help-btn');
+            const needHelpModal = document.getElementById('need-help-modal');
+            const provideHelpModal = document.getElementById('provide-help-modal');
+            const chatModal = document.getElementById('chat-modal');
+            const resourceHubModal = document.getElementById('resource-hub-modal');
+            const resourceHubBtn = document.getElementById('resource-hub-btn');
+
+            // --- FUNCTIONS ---
+            function populateUpdates() {
+                const feed = document.getElementById('updates-feed');
+                feed.innerHTML = mockUpdates.map(update => `
+                    <li class="flex items-start">
+                        <span class="bg-slate-200 text-slate-600 text-xs font-semibold rounded-full px-2 py-1 mr-3">${update.time}</span>
+                        <p class="text-sm text-slate-700">${update.text}</p>
+                    </li>
+                `).join('');
+            }
+            
+            function populateResources() {
+                document.getElementById('resource-content').innerHTML = mockResources;
+            }
+
+            function toggleModal(modal, show) {
+                if (show) {
+                    modal.classList.remove('hidden');
+                } else {
+                    modal.classList.add('hidden');
+                }
+            }
+            
+            function createMarkerIcon(type) {
+                const icon = L.divIcon({
+                    html: `<span>${type === 'Medical' ? '⚕️' : type === 'Legal' ? '⚖️' : '🏠'}</span>`,
+                    className: `custom-marker-icon ${type.toLowerCase()}-ping`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+                return icon;
+            }
+
+            function addHelpRequest(latlng, type) {
+                const requestId = Date.now();
+                const icon = createMarkerIcon(type);
+                const marker = L.marker(latlng, { icon: icon }).addTo(map);
+                
+                marker.on('click', () => {
+                    if (userState.isVolunteer && !userState.activeChat) {
+                        const confirmConnect = confirm(`Connect with this ${type} request?`);
+                        if (confirmConnect) {
+                            marker.remove();
+                            delete helpRequests[requestId];
+                            openChat('volunteer');
+                        }
+                    }
+                });
+
+                helpRequests[requestId] = { latlng, type, marker };
+            }
+
+            function openChat(userType) {
+                userState.activeChat = true;
+                const messagesDiv = document.getElementById('chat-messages');
+                messagesDiv.innerHTML = ''; 
+
+                const initialMessage = userType === 'requester'
+                    ? "You are connected with a verified volunteer. Please describe your situation briefly."
+                    : "You are connected. Please confirm you can assist. The user is waiting.";
+
+                const messageEl = document.createElement('div');
+                messageEl.className = 'text-center text-xs text-slate-500';
+                messageEl.textContent = initialMessage;
+                messagesDiv.appendChild(messageEl);
+
+                toggleModal(chatModal, true);
+            }
+
+            // --- EVENT LISTENERS ---
+            needHelpBtn.addEventListener('click', () => {
+                toggleModal(needHelpModal, true);
+                document.getElementById('need-help-step1').classList.remove('hidden');
+                document.getElementById('need-help-step2').classList.add('hidden');
+            });
+
+            provideHelpBtn.addEventListener('click', () => {
+                toggleModal(provideHelpModal, true);
+            });
+            
+            document.getElementById('need-help-cancel').addEventListener('click', () => toggleModal(needHelpModal, false));
+            document.getElementById('provide-help-cancel').addEventListener('click', () => toggleModal(provideHelpModal, false));
+            
+            document.querySelectorAll('.help-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    userState.helpType = btn.dataset.helpType;
+                    userState.isRequestingHelp = true;
+                    document.getElementById('need-help-step1').classList.add('hidden');
+                    document.getElementById('need-help-step2').classList.remove('hidden');
+                    map.once('click', (e) => {
+                        const obfuscatedLat = e.latlng.lat + (Math.random() - 0.5) * 0.002;
+                        const obfuscatedLng = e.latlng.lng + (Math.random() - 0.5) * 0.002;
+                        addHelpRequest({ lat: obfuscatedLat, lng: obfuscatedLng }, userState.helpType);
+                        userState.isRequestingHelp = false;
+                        toggleModal(needHelpModal, false);
+                        openChat('requester');
+                    });
+                });
+            });
+
+            document.getElementById('volunteer-verify-btn').addEventListener('click', () => {
+                const input = document.getElementById('volunteer-code-input');
+                const errorEl = document.getElementById('volunteer-error');
+                if (input.value === VOLUNTEER_CODE) {
+                    userState.isVolunteer = true;
+                    errorEl.textContent = '';
+                    input.value = '';
+                    toggleModal(provideHelpModal, false);
+                    alert('Verification successful. You can now see and respond to help requests on the map.');
+                } else {
+                    errorEl.textContent = 'Invalid code. Please try again.';
+                }
+            });
+
+            document.getElementById('close-chat-btn').addEventListener('click', () => {
+                toggleModal(chatModal, false);
+                userState.activeChat = false;
+            });
+            
+            document.getElementById('send-chat-btn').addEventListener('click', () => {
+                 const input = document.getElementById('chat-input');
+                 if(input.value.trim() !== '') {
+                    const messagesDiv = document.getElementById('chat-messages');
+                    const messageEl = document.createElement('div');
+                    messageEl.className = 'flex justify-end';
+                    messageEl.innerHTML = `<div class="bg-blue-500 text-white rounded-lg py-2 px-3 max-w-xs">${input.value}</div>`;
+                    messagesDiv.appendChild(messageEl);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    input.value = '';
+                 }
+            });
+
+            resourceHubBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleModal(resourceHubModal, true);
+            });
+
+            document.getElementById('resource-hub-close').addEventListener('click', () => {
+                toggleModal(resourceHubModal, false);
+            });
+
+            // --- INITIALIZATION ---
+            populateUpdates();
+            populateResources();
+        });
+    </script>
+</body>
+</html>
