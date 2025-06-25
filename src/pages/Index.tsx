@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { MapComponent } from '@/components/MapComponent';
 import { ActionPanel } from '@/components/ActionPanel';
@@ -25,6 +24,8 @@ const Index = () => {
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
   const { toast } = useToast();
 
+  const mapShouldBeInteractive = !showHelpModal && !showVolunteerModal;
+
   const handleMapClick = useCallback((coordinates: [number, number]) => {
     console.log('Map clicked:', coordinates, 'selecting location:', isSelectingLocation);
     
@@ -42,8 +43,14 @@ const Index = () => {
   const handleNeedHelp = useCallback(() => {
     console.log('Need help clicked');
     setSelectedLocation(null);
-    setIsSelectingLocation(true);
+    setIsSelectingLocation(false);
     setShowHelpModal(true);
+  }, []);
+
+  const handleLocationSelect = useCallback(() => {
+    console.log('Location select requested');
+    setIsSelectingLocation(true);
+    // Keep modal open during location selection
   }, []);
 
   const handleHelpRequest = useCallback((type: 'Medical' | 'Legal' | 'Shelter') => {
@@ -161,6 +168,7 @@ const Index = () => {
           isVolunteer={isVolunteer}
           onAcceptRequest={handleAcceptRequest}
           isSelectingLocation={isSelectingLocation}
+          mapIsInteractive={mapShouldBeInteractive}
         />
       </div>
 
@@ -179,6 +187,7 @@ const Index = () => {
         onClose={handleCloseHelpModal}
         onSubmit={handleHelpRequest}
         hasLocation={!!selectedLocation}
+        onLocationSelect={handleLocationSelect}
       />
 
       <VolunteerModal

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -19,6 +18,7 @@ interface MapComponentProps {
   isVolunteer: boolean;
   onAcceptRequest: (requestId: string) => void;
   isSelectingLocation?: boolean;
+  mapIsInteractive?: boolean;
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
@@ -27,7 +27,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   selectedLocation,
   isVolunteer,
   onAcceptRequest,
-  isSelectingLocation = false
+  isSelectingLocation = false,
+  mapIsInteractive = true,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -137,6 +138,28 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     (window as any).acceptRequest = onAcceptRequest;
 
   }, [helpRequests, isVolunteer, onAcceptRequest]);
+
+  useEffect(() => {
+    if (map.current) {
+      if (mapIsInteractive) {
+        // Enable all interactions
+        map.current.keyboard?.enable();
+        map.current.dragging?.enable();
+        map.current.touchZoom?.enable();
+        map.current.doubleClickZoom?.enable();
+        map.current.scrollWheelZoom?.enable();
+        map.current.boxZoom?.enable();
+      } else {
+        // Disable all interactions to prevent focus stealing
+        map.current.keyboard?.disable();
+        map.current.dragging?.disable();
+        map.current.touchZoom?.disable();
+        map.current.doubleClickZoom?.disable();
+        map.current.scrollWheelZoom?.disable();
+        map.current.boxZoom?.disable();
+      }
+    }
+  }, [mapIsInteractive]);
 
   return (
     <div className="relative w-full h-full">

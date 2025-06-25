@@ -1,10 +1,10 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,16 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
   onVerify
 }) => {
   const [code, setCode] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +40,20 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md z-[200]" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-center">Volunteer Verification</DialogTitle>
+          <DialogDescription className="text-center text-gray-600 pt-2">
+            Please enter your pre-shared verification code to offer assistance.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -43,12 +62,14 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
               Enter your pre-shared verification code:
             </label>
             <Input
+              ref={inputRef}
               id="verification-code"
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Verification code"
               className="w-full"
+              autoComplete="off"
             />
           </div>
           
