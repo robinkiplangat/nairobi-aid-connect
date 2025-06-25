@@ -25,6 +25,8 @@ const Index = () => {
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
   const { toast } = useToast();
 
+  const mapShouldBeInteractive = !showHelpModal && !showVolunteerModal;
+
   const handleMapClick = useCallback((coordinates: [number, number]) => {
     console.log('Map clicked:', coordinates, 'selecting location:', isSelectingLocation);
     
@@ -161,6 +163,7 @@ const Index = () => {
           isVolunteer={isVolunteer}
           onAcceptRequest={handleAcceptRequest}
           isSelectingLocation={isSelectingLocation}
+          mapIsInteractive={mapShouldBeInteractive}
         />
       </div>
 

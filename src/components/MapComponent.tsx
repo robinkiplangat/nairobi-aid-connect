@@ -19,6 +19,7 @@ interface MapComponentProps {
   isVolunteer: boolean;
   onAcceptRequest: (requestId: string) => void;
   isSelectingLocation?: boolean;
+  mapIsInteractive?: boolean;
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
@@ -27,7 +28,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   selectedLocation,
   isVolunteer,
   onAcceptRequest,
-  isSelectingLocation = false
+  isSelectingLocation = false,
+  mapIsInteractive = true,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -137,6 +139,19 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     (window as any).acceptRequest = onAcceptRequest;
 
   }, [helpRequests, isVolunteer, onAcceptRequest]);
+
+  useEffect(() => {
+    if (map.current) {
+      if (mapIsInteractive) {
+        map.current.keyboard?.enable();
+        // You might need to enable other interactions if you disable more than keyboard
+        // e.g., map.current.dragging.enable(), map.current.touchZoom.enable(), etc.
+      } else {
+        map.current.keyboard?.disable();
+        // e.g., map.current.dragging.disable(), map.current.touchZoom.disable(), etc.
+      }
+    }
+  }, [mapIsInteractive]);
 
   return (
     <div className="relative w-full h-full">
