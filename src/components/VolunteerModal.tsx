@@ -30,8 +30,14 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center">Volunteer Verification</DialogTitle>

@@ -38,8 +38,14 @@ export const HelpRequestModal: React.FC<HelpRequestModalProps> = ({
     setStep('location'); // Reset for next time
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
