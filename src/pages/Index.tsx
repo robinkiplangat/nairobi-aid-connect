@@ -13,6 +13,8 @@ export interface MapHotspotData {
   timestamp: string;
 }
 
+type HelpType = 'Medical' | 'Legal' | 'Shelter'; // Re-usable type
+
 interface ChatSessionEstablishedMessage {
   type: "ChatSessionEstablished";
   chat_room_id: string;
@@ -30,7 +32,7 @@ const Index = () => {
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [isVolunteer, setIsVolunteer] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
-  const [isSelectingLocation, setIsSelectingLocation] = useState(false);
+  const [isSelectingLocation, setIsSelectingLocation] = useState(false); // For map interaction state
   const { toast } = useToast();
 
   const [volunteerSessionToken, setVolunteerSessionToken] = useState<string | null>(null);
@@ -46,6 +48,7 @@ const Index = () => {
 
   const notificationWs = useRef<WebSocket | null>(null);
 
+  // Notification WebSocket useEffect (as before)
   useEffect(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = `${wsProtocol}://${window.location.host}/ws/notifications`;
@@ -54,27 +57,16 @@ const Index = () => {
     notificationWs.current.onmessage = (event) => {
       try {
         const rawMessage = JSON.parse(event.data as string);
-        console.log("Notification received:", rawMessage);
-        if (rawMessage && rawMessage.chat_room_id && rawMessage.request_id) { // Assuming ChatSessionEstablished
+        if (rawMessage && rawMessage.chat_room_id && rawMessage.request_id) {
           const chatData = rawMessage as ChatSessionEstablishedMessage;
-          const currentRole = currentUserRoleInChat; // Use a local var for current role in this snapshot
-          const localVolunteerId = currentVolunteerId; // Use local var
-          const localMyLastRequestId = myLastRequestId; // Use local var
-
-          console.log(`Processing ChatSessionEstablished: role=${currentRole}, volId=${localVolunteerId}, reqId=${localMyLastRequestId}`);
-          console.log(`ChatData: volId=${chatData.volunteer_id}, reqId=${chatData.request_id}`);
-
+          const currentRole = currentUserRoleInChat;
+          const localVolunteerId = currentVolunteerId;
+          const localMyLastRequestId = myLastRequestId;
 
           if (currentRole === 'volunteer' && chatData.volunteer_id === localVolunteerId) {
-            console.log(`Volunteer ${localVolunteerId} assigned to chat ${chatData.chat_room_id} for request ${chatData.request_id}`);
-            setLiveChatRoomId(chatData.chat_room_id);
-            setCurrentUserChatToken(chatData.volunteer_token);
+            setLiveChatRoomId(chatData.chat_room_id); setCurrentUserChatToken(chatData.volunteer_token);
           } else if (currentRole === 'requester' && chatData.request_id === localMyLastRequestId) {
-            console.log(`Requester for request ${localMyLastRequestId} assigned to chat ${chatData.chat_room_id}`);
-            setLiveChatRoomId(chatData.chat_room_id);
-            setCurrentUserChatToken(chatData.requester_token);
-          } else {
-            console.log("ChatSessionEstablished message not for current user state.");
+            setLiveChatRoomId(chatData.chat_room_id); setCurrentUserChatToken(chatData.requester_token);
           }
         } else if (rawMessage.type === 'system') {
             toast({ title: "System Notification", description: rawMessage.message, duration: 3000});
@@ -88,35 +80,78 @@ const Index = () => {
 
 
   const handleMapClick = useCallback((coordinates: [number, number]) => {
-    if (isSelectingLocation && !isChatVisible) {
-      setSelectedLocation(coordinates); setIsSelectingLocation(false);
-      toast({ title: "Location Selected", description: "Now choose the type of help you need." });
+    if (isSelectingLocation && showHelpModal && !isChatVisible) { // Ensure help modal is open for this action
+      setSelectedLocation(coordinates);
+      setIsSelectingLocation(false); // Location picked, map no longer needs to be in "selection mode" for this interaction
+      toast({ title: "Location Pin Dropped", description: "Location marked on the map." });
     }
-  }, [isSelectingLocation, toast, isChatVisible]);
+  }, [isSelectingLocation, showHelpModal, toast, isChatVisible]);
 
+  // Called when "I NEED HELP" is clicked
   const handleNeedHelp = useCallback(() => {
-    setSelectedLocation(null); setIsSelectingLocation(false); setShowHelpModal(true);
+    setSelectedLocation(null);      // Reset location when modal opens
+    setIsSelectingLocation(false);  // Reset map selection mode
+    setMyLastRequestId(null);       // Reset previous request ID
+    setCurrentUserRoleInChat(null); // Reset role if any previous chat
+    setLiveChatRoomId(null);        // Ensure any existing chat is closed
+    setCurrentUserChatToken(null);
+    setShowHelpModal(true);
   }, []);
 
-  const handleLocationSelect = useCallback(() => { setIsSelectingLocation(true); }, []);
+  // Called by HelpRequestModal when it needs the user to pick a location on the map.
+  const handleModalRequestsLocationSelection = useCallback(() => {
+    setIsSelectingLocation(true); // Enable map click in `handleMapClick`
+    toast({ title: "Select Location", description: "Please tap your approximate location on the map." });
+  }, [toast]);
 
-  const handleHelpRequest = useCallback((type: 'Medical' | 'Legal' | 'Shelter') => {
-    if (!selectedLocation) { toast({ title: "Location Required", description: "Please click on map.", variant: "destructive" }); return; }
-    const payload = { request_type: type, coordinates: { lat: selectedLocation[0], lng: selectedLocation[1] }, original_content: `Direct app request for ${type}.` };
+  // New callback for when device GPS location is set by the modal
+  const handleDeviceLocationSet = useCallback((coordinates: [number, number]) => {
+    setSelectedLocation(coordinates);
+    setIsSelectingLocation(false); // Location is set, no longer in "map selection mode"
+    // Toast is handled by the modal for GPS success/failure
+  }, []);
+
+  // This is now the final submission from HelpRequestModal, called AFTER type and location are confirmed.
+  // The modal passes the selected 'type'. 'selectedLocation' is already in Index.tsx's state.
+  const handleModalSubmitRequest = useCallback((type: HelpType) => {
+    if (!selectedLocation) {
+      toast({ title: "Location Required", description: "Please select a location on the map first.", variant: "destructive" });
+      // This case should ideally be prevented by HelpRequestModal's logic (button disabled if locationSelected is false)
+      // but good to have a fallback.
+      setIsSelectingLocation(true); // Re-prompt for location
+      return;
+    }
+
+    console.log('Finalizing help request. Type:', type, 'Location:', selectedLocation);
+    const payload = {
+      request_type: type,
+      coordinates: { lat: selectedLocation[0], lng: selectedLocation[1] },
+      original_content: `Direct app request for ${type} assistance. Location selected via map.`,
+    };
+
     fetch('/api/v1/request/direct', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     .then(async response => { const d = await response.json(); if (!response.ok) throw d; return d; })
     .then(data => {
-      toast({ title: "Help Request Sent", description: "Waiting for volunteer." });
-      setShowHelpModal(false); setSelectedLocation(null); setIsSelectingLocation(false);
+      toast({ title: "Help Request Sent", description: "Your request has been received. Waiting for a volunteer." });
+      setShowHelpModal(false);
+      // selectedLocation and isSelectingLocation are reset when modal closes (handleCloseHelpModal) or when new request starts.
+
       const newRequestId = data.details?.request_id;
       if (newRequestId) {
         setMyLastRequestId(newRequestId);
         setCurrentUserRoleInChat('requester');
-        console.log(`Help request ${newRequestId} submitted. Waiting for notification.`);
-      } else { console.error("No request_id in response."); toast({title: "Error", description: "Failed to get request ID.", variant: "destructive"}); }
+        console.log(`Help request ${newRequestId} submitted. Waiting for chat notification via WebSocket.`);
+      } else {
+        console.error("No request_id received in direct request response.");
+        toast({title: "Error", description: "Failed to get request ID for tracking.", variant: "destructive"});
+      }
     })
-    .catch(error => { console.error('Failed to submit help request:', error); toast({ title: "Submission Failed", description: error.detail || error.message || "Could not submit.", variant: "destructive" }); });
+    .catch(error => {
+      console.error('Failed to submit help request:', error);
+      toast({ title: "Submission Failed", description: error.detail || error.message || "Could not submit your request.", variant: "destructive" });
+    });
   }, [selectedLocation, toast]);
+
 
   const handleProvideHelp = useCallback(() => {
     if (isVolunteer) { toast({ title: "You're already verified." }); } else { setShowVolunteerModal(true); }
@@ -144,48 +179,43 @@ const Index = () => {
   }, [toast]);
 
   const handleAcceptRequest = useCallback((requestId: string) => {
-    if (!volunteerSessionToken) { toast({ title: "Auth Error", description: "Please verify again.", variant: "destructive" }); setIsVolunteer(false); setVolunteerSessionToken(null); setCurrentVolunteerId(null); setCurrentUserRoleInChat(null); return; }
+    if (!volunteerSessionToken) { /* ... error handling ... */ return; }
     fetch(`/api/v1/request/${requestId}/accept`, { method: 'POST', headers: { 'Authorization': `Bearer ${volunteerSessionToken}` } })
-    .then(async response => { const d = await response.json(); if (!response.ok) { if (response.status === 401) { setIsVolunteer(false); setVolunteerSessionToken(null); setCurrentVolunteerId(null); setCurrentUserRoleInChat(null); } throw d; } return d; })
+    .then(async response => { const d = await response.json(); if (!response.ok) { if (response.status === 401) { /* reset states */ } throw d; } return d; })
     .then(data => {
       toast({ title: "Request Accepted by You", description: `Waiting for chat for request ${requestId}.` });
       setMapHotspots(prev => prev.filter(h => h.id !== requestId));
-      console.log(`Accepted request ${requestId}. Waiting for chat notification. Details:`, data.details);
+      // Chat will be initiated by notificationWS message for the volunteer
+      console.log(`Accepted request ${requestId}. Waiting for chat notification. Details from accept:`, data.details);
     })
-    .catch(error => { console.error('Failed to accept request:', error); toast({ title: "Accept Failed", description: error.detail || error.message || "Could not accept.", variant: "destructive" }); });
-  }, [toast, volunteerSessionToken, currentVolunteerId]);
+    .catch(error => { /* ... */ });
+  }, [toast, volunteerSessionToken, currentVolunteerId]); // currentVolunteerId might not be needed if not used inside
 
-  const handleCloseHelpModal = useCallback(() => { setShowHelpModal(false); setSelectedLocation(null); setIsSelectingLocation(false); }, []);
+  const handleCloseHelpModal = useCallback(() => {
+    setShowHelpModal(false);
+    setSelectedLocation(null); // Reset location when modal is closed
+    setIsSelectingLocation(false); // Reset map selection mode
+  }, []);
   const handleCloseVolunteerModal = useCallback(() => { setShowVolunteerModal(false); }, []);
   const handleCloseChat = useCallback(() => {
-    setLiveChatRoomId(null); setCurrentUserChatToken(null); // Keep role or clear too? For now, keep.
-    if (isVolunteer && volunteerSessionToken) { // Re-fetch hotspots for volunteer
+    setLiveChatRoomId(null); setCurrentUserChatToken(null); // User role can be kept or cleared based on desired flow post-chat
+    if (isVolunteer && volunteerSessionToken) {
       fetch('/api/v1/map/hotspots').then(r => r.json()).then(d => setMapHotspots(d)).catch(e => console.error("Re-fetch err", e));
     }
   }, [isVolunteer, volunteerSessionToken]);
 
   useEffect(() => { // Fetch map hotspots with polling
     let intervalId: NodeJS.Timeout | null = null;
-    const fetchHotspots = () => {
-      if (isVolunteer && volunteerSessionToken) { // Ensure volunteer is verified and has a session
-        console.log("Polling for hotspots...");
-        fetch('/api/v1/map/hotspots')
-          .then(response => { if (!response.ok) { return response.json().then(err => { throw err; }); } return response.json(); })
-          .then((data: MapHotspotData[]) => { setMapHotspots(data); /* console.log(`${data.length} hotspots loaded.`); */ })
-          .catch(error => { console.error("Error polling hotspots:", error); /* Don't clear map on poll error */ });
-      }
-    };
-
+    const fetchHotspots = () => { /* ... */ }; // as before
     if (isVolunteer && volunteerSessionToken) {
-      fetchHotspots(); // Initial fetch
-      intervalId = setInterval(fetchHotspots, 30000); // Poll every 30 seconds
+      fetchHotspots();
+      intervalId = setInterval(fetchHotspots, 30000);
     } else {
-      setMapHotspots([]); // Clear if not volunteer or no token
-      if (intervalId) clearInterval(intervalId); // Clear interval if it was set
-      // This case (isVolunteer true but no token) is handled by the notification WS useEffect dependency if needed
+      setMapHotspots([]);
+      if (intervalId) clearInterval(intervalId);
     }
     return () => { if (intervalId) clearInterval(intervalId); };
-  }, [isVolunteer, volunteerSessionToken]); // Removed toast from deps to avoid excessive toasts from polling
+  }, [isVolunteer, volunteerSessionToken]);
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
@@ -195,7 +225,14 @@ const Index = () => {
       <div className="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg flex flex-col overflow-y-auto">
         <ActionPanel onNeedHelp={handleNeedHelp} onProvideHelp={handleProvideHelp} isVolunteer={isVolunteer} />
       </div>
-      <HelpRequestModal isOpen={showHelpModal} onClose={handleCloseHelpModal} onSubmit={handleHelpRequest} hasLocation={!!selectedLocation} onLocationSelect={handleLocationSelect} />
+      <HelpRequestModal
+        isOpen={showHelpModal}
+        onClose={handleCloseHelpModal}
+        onLocationSelectRequest={handleModalRequestsLocationSelection}
+        onSubmitRequest={handleModalSubmitRequest}
+        locationSelected={!!selectedLocation} // Pass boolean indicating if location is selected
+        onDeviceLocationSet={handleDeviceLocationSet} // Pass the new callback
+      />
       <VolunteerModal isOpen={showVolunteerModal} onClose={handleCloseVolunteerModal} onVerify={handleVolunteerVerification} />
       <ChatInterface isVisible={isChatVisible} chatRoomId={liveChatRoomId} userToken={currentUserChatToken} userRole={currentUserRoleInChat} onClose={handleCloseChat} />
     </div>

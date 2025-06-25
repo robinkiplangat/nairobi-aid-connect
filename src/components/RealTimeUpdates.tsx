@@ -1,69 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
 
-// Matches backend schemas.Update (simplified for display)
-interface UpdateMessage {
-  id: string; // update_id
-  timestamp: string; // ISO string
-  title: string; // Use as main message or header
-  summary: string; // Use as main message or sub-text
-  source?: string; // Can be used to determine type or display
-  // type: 'info' | 'warning' | 'success'; // This was frontend-only, will derive or simplify
+interface Update {
+  id: string;
+  time: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
 }
 
 export const RealTimeUpdates: React.FC = () => {
-  const [updates, setUpdates] = useState<UpdateMessage[]>([]);
-  const { toast } = useToast();
+  const [updates, setUpdates] = useState<Update[]>([
+    {
+      id: '1',
+      time: '5m ago',
+      message: 'Roadblock reported near Uhuru Park. Avoid the area.',
+      type: 'warning'
+    },
+    {
+      id: '2',
+      time: '12m ago',
+      message: 'Medical volunteers station established at All Saints Cathedral.',
+      type: 'success'
+    },
+    {
+      id: '3',
+      time: '25m ago',
+      message: 'Peaceful gathering reported along Kenyatta Avenue.',
+      type: 'info'
+    },
+    {
+      id: '4',
+      time: '45m ago',
+      message: 'Legal aid available. Check the Resource Hub for contact numbers.',
+      type: 'info'
+    },
+    {
+      id: '5',
+      time: '1h ago',
+      message: 'Water distribution point active at Jeevanjee Gardens.',
+      type: 'success'
+    }
+  ]);
 
-  const mapSourceToType = (source?: string): 'info' | 'warning' | 'success' => {
-    const srcLower = source?.toLowerCase();
-    if (srcLower?.includes('official') || srcLower?.includes('alert')) return 'warning';
-    if (srcLower?.includes('ngo') || srcLower?.includes('community')) return 'success';
-    return 'info';
-  };
-
-  const formatTimeAgo = (isoTimestamp: string) => {
-    const date = new Date(isoTimestamp);
-    const now = new Date();
-    const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
-    const minutes = Math.round(seconds / 60);
-    const hours = Math.round(minutes / 60);
-    const days = Math.round(hours / 24);
-
-    if (seconds < 60) return `${seconds}s ago`;
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-
+  // Simulate real-time updates
   useEffect(() => {
-    const fetchUpdates = () => {
-      fetch('/api/v1/content/updates')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch updates');
-          }
-          return response.json();
-        })
-        .then((data: UpdateMessage[]) => {
-          // Assuming data is sorted by timestamp descending from backend
-          setUpdates(data.slice(0, 10)); // Keep only latest 10 for display
-        })
-        .catch(error => {
-          console.error("Error fetching real-time updates:", error);
-          // toast({ title: "Updates Error", description: "Could not load live updates.", variant: "destructive", duration: 3000 });
-        });
-    };
+    const interval = setInterval(() => {
+      const newUpdates = [
+        'Safe zone established at City Hall.',
+        'Mobile medical unit deployed to CBD area.',
+        'Traffic advisory: Moi Avenue clear for passage.',
+        'Volunteer coordination center active at KICC.',
+        'Emergency supplies available at Central Park.'
+      ];
 
-    fetchUpdates(); // Initial fetch
-    const interval = setInterval(fetchUpdates, 60000); // Poll every 60 seconds
+      const randomUpdate: Update = {
+        id: Date.now().toString(),
+        time: 'Just now',
+        message: newUpdates[Math.floor(Math.random() * newUpdates.length)],
+        type: Math.random() > 0.7 ? 'warning' : Math.random() > 0.5 ? 'success' : 'info'
+      };
+
+      setUpdates(prev => [randomUpdate, ...prev.slice(0, 9)]); // Keep only 10 updates
+    }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [toast]);
+  }, []);
 
-  const getUpdateIcon = (type: 'info' | 'warning' | 'success') => {
+  const getUpdateIcon = (type: string) => {
     switch (type) {
       case 'warning': return '⚠️';
       case 'success': return '✅';
@@ -71,7 +74,7 @@ export const RealTimeUpdates: React.FC = () => {
     }
   };
 
-  const getUpdateColor = (type: 'info' | 'warning' | 'success') => {
+  const getUpdateColor = (type: string) => {
     switch (type) {
       case 'warning': return 'border-l-orange-400 bg-orange-50';
       case 'success': return 'border-l-green-400 bg-green-50';
@@ -79,40 +82,25 @@ export const RealTimeUpdates: React.FC = () => {
     }
   };
 
-  if (updates.length === 0) {
-    return (
-      <div className="h-full px-6 py-4 flex items-center justify-center">
-        <p className="text-sm text-gray-500">No updates at the moment.</p>
-      </div>
-    );
-  }
-
   return (
     <ScrollArea className="h-full px-6 py-4">
       <div className="space-y-3">
-        {updates.map((update) => {
-          const displayType = mapSourceToType(update.source);
-          return (
-            <div
-              key={update.id} // Use update_id from backend
-              className={`border-l-4 p-3 rounded-r-lg ${getUpdateColor(displayType)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2">{getUpdateIcon(displayType)}</span>
-                    <span className="text-xs text-gray-500 font-medium">
-                      {formatTimeAgo(update.timestamp)}
-                    </span>
-                    {update.source && <span className="ml-2 text-xs text-gray-400">({update.source})</span>}
-                  </div>
-                  <p className="text-sm text-gray-800 font-semibold">{update.title}</p>
-                  <p className="text-sm text-gray-700">{update.summary}</p>
+        {updates.map((update) => (
+          <div
+            key={update.id}
+            className={`border-l-4 p-3 rounded-r-lg ${getUpdateColor(update.type)}`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-1">
+                  <span className="mr-2">{getUpdateIcon(update.type)}</span>
+                  <span className="text-xs text-gray-500 font-medium">{update.time}</span>
                 </div>
+                <p className="text-sm text-gray-800">{update.message}</p>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </ScrollArea>
   );
