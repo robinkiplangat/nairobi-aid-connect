@@ -8,8 +8,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DatabaseService:
-    client: AsyncIOMotorClient | None = None
-    db: AsyncIOMotorDatabase | None = None
+    client: Optional[AsyncIOMotorClient] = None
+    db: Optional[AsyncIOMotorDatabase] = None
 
     async def connect_to_mongo(self):
         logger.info("Connecting to MongoDB...")

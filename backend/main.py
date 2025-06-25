@@ -3,6 +3,8 @@ from typing import List
 import uuid
 from datetime import datetime
 import logging # Added logging
+import asyncio
+import json
 
 # Configure basic logging for the application
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -365,7 +367,3 @@ async def websocket_endpoint(websocket: WebSocket, chat_room_id: str, user_token
         # Ensure client is removed from active connections on any exit
         manager.disconnect(websocket, chat_room_id)
         logger.info(f"Cleaned up WebSocket connection for room {chat_room_id}, user role {user_role}.")
-
-# Need to import asyncio and json for the WebSocket part
-import asyncio
-import json

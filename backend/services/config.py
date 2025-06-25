@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache # For caching settings
+from typing import Optional, List
 
 class Settings(BaseSettings):
     # MongoDB Configuration
@@ -10,17 +11,17 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
-    REDIS_PASSWORD: str | None = None # Use Optional[str] in newer Pydantic/Python
+    REDIS_PASSWORD: Optional[str] = None # Use Optional[str] in newer Pydantic/Python
 
     # API Keys for External Services (placeholders)
-    TWITTER_BEARER_TOKEN: str | None = "YOUR_TWITTER_BEARER_TOKEN_HERE" # Replace with actual token via .env
-    GOOGLE_API_KEY: str | None = None # For NLP, Geocoding, etc.
+    TWITTER_BEARER_TOKEN: Optional[str] = "YOUR_TWITTER_BEARER_TOKEN_HERE" # Replace with actual token via .env
+    GOOGLE_API_KEY: Optional[str] = None # For NLP, Geocoding, etc.
 
     # Twitter Stream Configuration
     # Rules are complex for v2, often managed via API. Storing keywords here for simple rule generation.
     # Example rule: "#SOSNairobi OR #KenyaDemocracy OR #NairobiProtest OR \"need medic\""
     # tweepy.StreamRule allows more complex rule objects.
-    TWITTER_MONITOR_KEYWORDS: list[str] = [
+    TWITTER_MONITOR_KEYWORDS: List[str] = [
         "#SOSNairobi", "SOS Nairobi",
         "#KenyaDemocracy",
         "#NairobiProtest", "Nairobi Protest",

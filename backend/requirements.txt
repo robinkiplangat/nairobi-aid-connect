@@ -8,6 +8,7 @@ pydantic-settings
 
 # MongoDB driver
 pymongo
+motor
 
 # Redis driver (for message bus)
 redis
@@ -20,9 +21,6 @@ httpx
 
 # Python-dotenv for environment variable management
 python-dotenv
-
-# For generating UUIDs
-uuid
 
 # For Twitter API (if direct integration is chosen over ADK's potential built-in)
 tweepy

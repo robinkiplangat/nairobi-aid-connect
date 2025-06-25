@@ -2,6 +2,7 @@ import logging
 import uuid
 import json
 from datetime import datetime, timedelta
+from typing import Optional
 
 from ..models import schemas
 from ..services.message_bus import message_bus_service

@@ -2,6 +2,7 @@ import uuid
 import random
 from datetime import datetime
 import logging
+from typing import Optional, Union
 
 from ..models import schemas
 from ..services.message_bus import message_bus_service # Assuming global instance
@@ -51,7 +52,7 @@ class IntakeAgent:
     def __init__(self):
         self.twitter_client = None
         self.streaming_client = None
-        self._twitter_monitoring_task = None
+        self._twitter_monitoring_task: Optional[asyncio.Task] = None
         self._stop_twitter_monitoring_event = asyncio.Event()
 
         if settings.ENABLE_TWITTER_MONITORING and settings.TWITTER_BEARER_TOKEN and settings.TWITTER_BEARER_TOKEN != "YOUR_TWITTER_BEARER_TOKEN_HERE":
@@ -68,7 +69,7 @@ class IntakeAgent:
         else:
             logger.info("Twitter monitoring is disabled or Bearer Token is not configured.")
 
-    async def _simple_nlp_for_tweet(self, text: str) -> tuple[str, str | None]:
+    async def _simple_nlp_for_tweet(self, text: str) -> tuple[str, Optional[str]]:
         """
         Very basic NLP to guess request type and location from tweet text.
         Returns (request_type, potential_location_text)
