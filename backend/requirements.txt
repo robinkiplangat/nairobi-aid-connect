@@ -1,0 +1,42 @@
+# FastAPI & Uvicorn
+fastapi
+uvicorn[standard]
+
+# Pydantic for data validation and settings management
+pydantic
+pydantic-settings
+
+# MongoDB driver
+pymongo
+
+# Redis driver (for message bus)
+redis
+
+# Google Agent Development Kit (ADK) - Placeholder, will need to find the actual package name if available
+# google-adk
+
+# HTTP client for making requests to external APIs
+httpx
+
+# Python-dotenv for environment variable management
+python-dotenv
+
+# For generating UUIDs
+uuid
+
+# For Twitter API (if direct integration is chosen over ADK's potential built-in)
+tweepy
+
+# For NLP (e.g., Google Cloud Natural Language)
+# google-cloud-language
+
+# For Geocoding (e.g., Google Maps Geocoding)
+# googlemaps
+
+# Websockets with FastAPI
+websockets
+
+# Testing
+pytest
+pytest-asyncio # For testing async code
+requests # For testing API endpoints (alternative to httpx for sync tests)
