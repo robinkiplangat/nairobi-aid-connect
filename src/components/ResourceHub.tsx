@@ -13,10 +13,33 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const ResourceHub: React.FC = () => {
   const emergencyContacts = [
-    { name: 'Emergency Services', number: '999/911/112' },
-    { name: 'Red Cross Kenya', number: '+254 20 3950000' },
-    { name: 'Amnesty International', number: '+254 20 2432485' },
-    { name: 'Legal Aid Network', number: '+254 20 2711673' },
+    {
+      name: "Law Society of Kenya (LSK)",
+      number: "0800720434"
+    },
+    {
+      name: "Defenders Coalition",
+      number: "0716200100"
+    },
+    {
+      name: "Independent Medico-Legal Unit (IMLU)",
+      number: "0706162795 / 0800720627"
+    },
+    {
+      name: "Kenya National Commission on Human Rights (KNCHR)",
+      number: "08007260627"
+    },
+    {
+      name: "Amnesty International Kenya",
+      number: "0759464346"
+    },
+    {
+      name: "Civic Freedoms Forum",
+      number: "07283033864"
+    },
+    {
+      name: "Kenya Human Rights Commission (KHRC)",number: "0728606583"
+    }
   ];
 
   const safetyTips = [
