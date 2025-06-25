@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MapComponent } from '@/components/MapComponent';
 import { ActionPanel } from '@/components/ActionPanel';
@@ -104,10 +103,10 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Map Section - 60% width */}
-      <div className="w-3/5 relative">
-        <MapComponent 
+    <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+      {/* Map Section */}
+      <div className="w-full md:w-3/5 lg:w-2/3 h-1/2 md:h-full">
+        <MapComponent
           helpRequests={helpRequests}
           onMapClick={handleMapClick}
           selectedLocation={selectedLocation}
@@ -116,8 +115,8 @@ const Index = () => {
         />
       </div>
 
-      {/* Action Panel - 40% width */}
-      <div className="w-2/5 border-l border-border">
+      {/* Action Panel */}
+      <div className="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg flex flex-col overflow-y-auto">
         <ActionPanel
           onNeedHelp={() => setShowHelpModal(true)}
           onProvideHelp={() => setShowVolunteerModal(true)}
