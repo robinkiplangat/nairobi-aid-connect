@@ -1,28 +1,91 @@
-from fastapi import FastAPI, HTTPException, Body, WebSocket
-from typing import List, Dict, Optional # Added Dict, Optional
+from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from typing import List, Dict, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import asyncio
 import json
+import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Security logger
+security_logger = logging.getLogger('security')
+security_logger.setLevel(logging.INFO)
+
 from models import schemas
 from services.database import db_service
 from services.message_bus import message_bus_service
+from services.config import settings
 from agents.intake_agent import intake_agent
 from agents.verification_agent import verification_agent
 from agents.dispatcher_agent import dispatcher_agent
 from agents.comms_agent import comms_agent, CommsAgent # CommsAgent class for static methods
 from agents.content_agent import content_agent
+from services.organization_service import organization_service
+from services.security import create_access_token, verify_access_token
+from models import database_models # For type hinting current_user
 
 app = FastAPI(
     title="SOS Nairobi Backend",
     description="Multi-agent system for coordinating emergency aid.",
     version="0.1.0"
 )
+
+# Security Middleware Configuration
+limiter = None
+if settings.ENABLE_RATE_LIMITING:
+    try:
+        from slowapi import Limiter, _rate_limit_exceeded_handler
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+        
+        limiter = Limiter(key_func=get_remote_address)
+        app.state.limiter = limiter
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        logger.info("Rate limiting enabled")
+    except ImportError:
+        logger.warning("slowapi not installed. Rate limiting disabled.")
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://nairobi-aid-connect.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ] if settings.APP_ENV == "production" else ["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+# Trusted Host Middleware
+if settings.APP_ENV == "production":
+    app.add_middleware(
+        TrustedHostMiddleware, 
+        allowed_hosts=[
+            "nairobi-aid-connect.onrender.com",
+            "localhost",
+            "127.0.0.1"
+        ]
+    )
+    
+    # Force HTTPS in production
+    if settings.REQUIRE_HTTPS:
+        app.add_middleware(HTTPSRedirectMiddleware)
+
+# Security monitoring function
+def log_security_event(event_type: str, details: dict, user_ip: str = "unknown"):
+    if settings.ENABLE_SECURITY_LOGGING:
+        security_logger.warning(
+            f"Security Event: {event_type} from {user_ip} - {details}"
+        )
 
 # --- Notification WebSocket Manager ---
 class NotificationSocketManager:
@@ -95,6 +158,23 @@ async def redis_notification_listener():
         except Exception as e:
             logger.error(f"Error closing pubsub object: {e}", exc_info=True)
 
+# Initialize Sentry for error tracking
+if settings.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            integrations=[FastApiIntegration()],
+            traces_sample_rate=0.1,
+            environment=settings.APP_ENV,
+        )
+        logger.info("Sentry monitoring initialized")
+    except ImportError:
+        logger.warning("Sentry SDK not installed. Error tracking disabled.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Sentry: {e}")
 
 # Lifespan events
 @app.on_event("startup")
@@ -168,8 +248,20 @@ async def shutdown_event():
 async def read_root(): return {"status": "SOS Nairobi Backend is running"}
 
 @app.post("/api/v1/request/direct", response_model=schemas.GenericResponse, tags=["Intake Agent"])
-async def submit_direct_request(payload: schemas.DirectHelpRequestPayload = Body(...)):
-    logger.info(f"API /api/v1/request/direct received: {payload.model_dump_json(indent=2)}")
+async def submit_direct_request(request: Request, payload: schemas.DirectHelpRequestPayload = Body(...)):
+    # Apply rate limiting if enabled
+    if limiter and settings.ENABLE_RATE_LIMITING:
+        await limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")(lambda: None)()
+    
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"API /api/v1/request/direct received from {client_ip}: {payload.model_dump_json(indent=2)}")
+    
+    # Log security event
+    log_security_event("direct_request", {
+        "content_length": len(payload.original_content),
+        "location": payload.location_text[:50] + "..." if payload.location_text and len(payload.location_text) > 50 else (payload.location_text or "none")
+    }, client_ip)
+    
     try:
         details = await intake_agent.handle_direct_request(payload)
         return schemas.GenericResponse(message="Request received.", details={"request_id": details.request_id, "status": details.status})
@@ -177,25 +269,39 @@ async def submit_direct_request(payload: schemas.DirectHelpRequestPayload = Body
         logger.error(f"Error in /api/v1/request/direct: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-from fastapi import Depends, Header # Ensure Depends and Header are imported
-
 async def get_volunteer_from_token(authorization: Optional[str] = Header(None)) -> str:
-    if authorization is None: raise HTTPException(status_code=401, detail="Auth header missing.")
+    if authorization is None: 
+        raise HTTPException(status_code=401, detail="Auth header missing.")
     parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer": raise HTTPException(status_code=401, detail="Invalid auth scheme.")
+    if len(parts) != 2 or parts[0].lower() != "bearer": 
+        raise HTTPException(status_code=401, detail="Invalid auth scheme.")
     token = parts[1]
     volunteer_id = await verification_agent.validate_session_token(token)
-    if not volunteer_id: raise HTTPException(status_code=401, detail="Invalid/expired session token.")
+    if not volunteer_id: 
+        raise HTTPException(status_code=401, detail="Invalid/expired session token.")
     return volunteer_id
 
 @app.post("/api/v1/volunteer/verify", response_model=schemas.GenericResponse, tags=["Verification Agent"])
-async def verify_volunteer(payload: schemas.VolunteerVerificationPayload = Body(...)):
-    logger.info(f"API /api/v1/volunteer/verify received: {payload.model_dump_json(indent=2)}")
+async def verify_volunteer(request: Request, payload: schemas.VolunteerVerificationPayload = Body(...)):
+    # Apply rate limiting if enabled
+    if limiter and settings.ENABLE_RATE_LIMITING:
+        await limiter.limit("3/minute")(lambda: None)()
+    
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"API /api/v1/volunteer/verify received from {client_ip}: {payload.model_dump_json(indent=2)}")
+    
+    # Log security event
+    log_security_event("volunteer_verification", {
+        "verification_code_length": len(payload.verification_code)
+    }, client_ip)
+    
     try:
         response = await verification_agent.handle_verification_request(payload)
-        if not response.success: raise HTTPException(status_code=400, detail=response.message)
+        if not response.success: 
+            raise HTTPException(status_code=400, detail=response.message)
         return response
-    except HTTPException: raise
+    except HTTPException: 
+        raise
     except Exception as e:
         logger.error(f"Error in /api/v1/volunteer/verify: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -303,3 +409,174 @@ async def websocket_notification_endpoint(websocket: WebSocket):
     finally:
         notification_manager.disconnect(websocket)
         logger.info("Cleaned up notification WS connection.")
+
+# --- Partner Organization Authentication ---
+
+# OAuth2PasswordBearer for partner login (tokenUrl is relative to the app root)
+# The path "/api/v1/partner/auth/token" will be created below.
+oauth2_scheme_partner = OAuth2PasswordBearer(tokenUrl="api/v1/partner/auth/token")
+
+async def get_current_partner_user(token: str = Depends(oauth2_scheme_partner)) -> database_models.MongoOrganizationUser:
+    """
+    Dependency to get the current authenticated partner organization user.
+    Verifies JWT token and returns the user model.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    token_data = verify_access_token(token, credentials_exception) # verify_access_token is in security.py
+    if not token_data or not token_data.user_id: # Ensure user_id is in token
+        logger.warning(f"Token verification failed or user_id missing in token. Token data: {token_data}")
+        raise credentials_exception
+
+    user = await organization_service.get_organization_user_by_id(token_data.user_id)
+    if user is None:
+        logger.warning(f"User not found for user_id {token_data.user_id} from token.")
+        raise credentials_exception
+    if not user.is_active: # Check if the user account is active
+        logger.warning(f"User {user.email} is inactive.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return user
+
+@app.post("/api/v1/partner/auth/register", response_model=schemas.OrganizationUser, tags=["Partner Auth"])
+async def register_partner_organization_user(payload: schemas.PartnerRegisterPayload = Body(...)):
+    """
+    Register a new organization and its first admin user.
+    """
+    # 1. Check if organization already exists by name
+    existing_org = await organization_service.get_organization_by_name(payload.organization_name)
+    if existing_org:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Organization with name '{payload.organization_name}' already exists."
+        )
+
+    # 2. Check if the admin email is already taken
+    existing_user = await organization_service.get_organization_user_by_email(payload.admin_email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email '{payload.admin_email}' already exists."
+        )
+
+    # 3. Create the organization
+    org_create_schema = schemas.OrganizationCreate(
+        name=payload.organization_name,
+        type=payload.organization_type # Pydantic schema uses 'type' as alias for organization_type
+    )
+    organization = await organization_service.create_organization(org_create_schema)
+    if not organization or not organization.organization_id:
+        logger.error(f"Failed to create organization with name {payload.organization_name}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create organization."
+        )
+
+    # 4. Create the admin user for this organization
+    user_create_schema = schemas.OrganizationUserCreate(
+        email=payload.admin_email,
+        full_name=payload.admin_full_name,
+        password=payload.admin_password,
+        organization_id=organization.organization_id, # Link user to the newly created org
+        role="admin" # First user of an organization defaults to admin
+    )
+    # Pass organization_id explicitly as it's required by create_organization_user
+    org_user = await organization_service.create_organization_user(user_create_schema, organization_id=organization.organization_id)
+
+    if not org_user:
+        # TODO: Consider rollback for organization creation if user creation fails.
+        # This could involve deleting the organization or marking it as inactive/pending user.
+        # For now, log the error and raise HTTP 500.
+        logger.error(f"Failed to create admin user for new organization {organization.organization_id}, though organization was created.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create admin user for the organization. Organization creation might need manual review."
+        )
+
+    # The schemas.OrganizationUser model should correctly exclude sensitive fields like hashed_password for the response.
+    return org_user
+
+
+@app.post("/api/v1/partner/auth/token", response_model=schemas.Token, tags=["Partner Auth"])
+async def login_partner_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Partner organization user login to get an access token.
+    Frontend should send 'username' (which is email) and 'password' as form data.
+    """
+    user = await organization_service.verify_organization_user_credentials(
+        email=form_data.username, # form_data.username is used for the email
+        password=form_data.password
+    )
+    if not user or not user.user_id: # Ensure user and user.user_id are valid
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_data = {
+        "sub": user.email, # Subject of the token is user's email
+        "user_id": str(user.user_id), # Ensure user_id is string for JWT
+        "organization_id": str(user.organization_id), # Ensure organization_id is string
+        "role": user.role
+    }
+    access_token = create_access_token(
+        data=access_token_data,
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/v1/partner/auth/me", response_model=schemas.OrganizationUser, tags=["Partner Auth"])
+async def read_partner_users_me(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Get current authenticated partner organization user.
+    """
+    # current_user is already an instance of MongoOrganizationUser thanks to the dependency.
+    # Pydantic will handle the conversion to the response_model schemas.OrganizationUser.
+    return current_user
+
+# --- Partner Dashboard API Endpoints (Initial Placeholders) ---
+
+@app.get("/api/v1/partner/dashboard/summary", response_model=schemas.GenericResponse, tags=["Partner Dashboard"])
+async def get_partner_dashboard_summary(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for partner dashboard summary.
+    Requires authenticated partner user.
+    """
+    # In the future, this would aggregate data specific to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Dashboard summary for organization {current_user.organization_id} (user: {current_user.email}).",
+        details={
+            "organization_id": current_user.organization_id,
+            "user_role": current_user.role,
+            "active_cases_count": 0, # Placeholder
+            "available_resources_count": 0 # Placeholder
+        }
+    )
+
+@app.get("/api/v1/partner/cases", response_model=schemas.GenericResponse, tags=["Partner Dashboard"]) # Adjust response_model later
+async def get_partner_cases(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for listing active cases for the partner organization.
+    Requires authenticated partner user.
+    """
+    # TODO: Implement logic to fetch cases assigned to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Active cases for organization {current_user.organization_id}.",
+        details={"cases": []} # Placeholder
+    )
+
+@app.get("/api/v1/partner/resources", response_model=schemas.GenericResponse, tags=["Partner Dashboard"]) # Adjust response_model later
+async def get_partner_resources(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for listing resources for the partner organization.
+    Requires authenticated partner user.
+    """
+    # TODO: Implement logic to fetch resources managed by or available to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Resources for organization {current_user.organization_id}.",
+        details={"resources": []} # Placeholder
+    )

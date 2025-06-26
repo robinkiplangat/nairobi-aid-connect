@@ -1,3 +1,6 @@
+![alt text](public/sos_landing.png?raw=true)
+
+
 # 🌟 Nairobi Aid Connect
 
 A real-time emergency response coordination platform for Nairobi, Kenya. This multi-agent system connects people in need with verified volunteers and emergency services through an intelligent, location-based matching system.

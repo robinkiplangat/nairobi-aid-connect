@@ -34,6 +34,13 @@ tweepy
 # Websockets with FastAPI
 websockets
 
+# Security & Monitoring
+slowapi  # Rate limiting
+sentry-sdk[fastapi]  # Error tracking
+cryptography  # Data encryption
+passlib[bcrypt] # For password hashing
+python-jose[cryptography] # For JWT handling
+
 # Testing
 pytest
 pytest-asyncio # For testing async code
