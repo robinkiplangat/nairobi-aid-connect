@@ -3,10 +3,10 @@ from typing import Optional, Tuple
 import uuid
 import hashlib # For API key hashing (not passwords)
 
-from ..models import schemas, database_models
-from .database import db_service
+from models import schemas, database_models
+from services.database import db_service
 # Placeholder for password hashing utilities, will be added to security.py
-from .security import get_password_hash, verify_password
+from services.security import get_password_hash, verify_password
 
 class OrganizationService:
     async def create_organization(self, org_create_data: schemas.OrganizationCreate) -> Optional[database_models.MongoOrganization]:

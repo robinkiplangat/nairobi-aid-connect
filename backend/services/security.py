@@ -330,7 +330,7 @@ def get_password_hash(password: str) -> str:
 
 # --- JWT Token Handling ---
 from jose import JWTError, jwt
-from ..models import schemas as app_schemas # To avoid circular import with main's schemas
+from models import schemas as app_schemas # To avoid circular import with main's schemas
 
 # These should be in your .env file and loaded via settings
 # For demonstration, using settings directly. Ensure they are set in your config.
