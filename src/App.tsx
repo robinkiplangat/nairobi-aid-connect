@@ -11,6 +11,9 @@ import Login from "./pages/partner/Login";
 import CaseManagement from "./pages/partner/CaseManagement";
 import Settings from "./pages/partner/Settings";
 import VolunteerManagement from "./pages/partner/VolunteerManagement";
+import ResourceStatus from "./pages/partner/ResourceStatus";
+import TeamAvailability from "./pages/partner/TeamAvailability";
+import CollaborationHub from "./pages/partner/CollaborationHub";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +29,9 @@ const App = () => (
           <Route path="/partner/login" element={<Login />} />
           <Route path="/partner/cases" element={<CaseManagement />} />
           <Route path="/partner/volunteers" element={<VolunteerManagement />} />
+          <Route path="/partner/resource-status" element={<ResourceStatus />} />
+          <Route path="/partner/team-availability" element={<TeamAvailability />} />
+          <Route path="/partner/collaboration-hub" element={<CollaborationHub />} />
           <Route path="/partner/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
