@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { MapComponent } from '@/components/MapComponent';
+import { MapComponent, ZoneStatusData } from '@/components/MapComponent'; // Import ZoneStatusData
 import { ActionPanel } from '@/components/ActionPanel';
 import { HelpRequestModal } from '@/components/HelpRequestModal';
 import { VolunteerModal } from '@/components/VolunteerModal';
@@ -48,6 +48,21 @@ const Index = () => {
   const mapShouldBeInteractive = !showHelpModal && !showVolunteerModal && !isChatVisible;
 
   const notificationWs = useRef<WebSocket | null>(null);
+
+  // Mock zone data - this will be passed to MapComponent
+  // Later, this could be fetched from an API
+  const [currentZoneData, setCurrentZoneData] = useState<ZoneStatusData[]>([
+    { name: 'CBD', lat: -1.2921, lng: 36.8219, status: 'danger', intensity: 0.8 },
+    { name: 'Westlands', lat: -1.2676, lng: 36.8062, status: 'moderate', intensity: 0.6 },
+    { name: 'Kibera', lat: -1.3133, lng: 36.7892, status: 'calm', intensity: 0.3 },
+    { name: 'Parklands', lat: -1.2632, lng: 36.8103, status: 'moderate', intensity: 0.5 },
+    { name: 'Industrial Area', lat: -1.3031, lng: 36.8073, status: 'danger', intensity: 0.9 },
+    { name: 'Gigiri', lat: -1.2507, lng: 36.8673, status: 'calm', intensity: 0.2 },
+    { name: 'Karen', lat: -1.2741, lng: 36.7540, status: 'moderate', intensity: 0.4 }, // Corrected spelling
+    { name: 'Muthaiga', lat: -1.2195, lng: 36.8965, status: 'calm', intensity: 0.1 },
+    { name: 'South B', lat: -1.3152, lng: 36.8302, status: 'danger', intensity: 0.7 },
+    { name: 'Hurlingham', lat: -1.2841, lng: 36.8155, status: 'moderate', intensity: 0.5 },
+  ]);
 
   // Notification WebSocket useEffect (as before)
   useEffect(() => {
@@ -222,7 +237,16 @@ const Index = () => {
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
       <div className="w-full md:w-3/5 lg:w-2/3 h-1/2 md:h-full">
-        <MapComponent hotspots={mapHotspots} onMapClick={handleMapClick} selectedLocation={selectedLocation} isVolunteer={isVolunteer} onAcceptRequest={handleAcceptRequest} isSelectingLocation={isSelectingLocation} mapIsInteractive={mapShouldBeInteractive} />
+        <MapComponent
+          hotspots={mapHotspots}
+          onMapClick={handleMapClick}
+          selectedLocation={selectedLocation}
+          isVolunteer={isVolunteer}
+          onAcceptRequest={handleAcceptRequest}
+          isSelectingLocation={isSelectingLocation}
+          mapIsInteractive={mapShouldBeInteractive}
+          zoneData={currentZoneData} // Pass the zoneData as a prop
+        />
       </div>
       <div className="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg flex flex-col overflow-y-auto">
         <ActionPanel onNeedHelp={handleNeedHelp} onProvideHelp={handleProvideHelp} isVolunteer={isVolunteer} />
