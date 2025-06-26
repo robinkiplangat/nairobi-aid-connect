@@ -5,6 +5,7 @@ import { HelpRequestModal } from '@/components/HelpRequestModal';
 import { VolunteerModal } from '@/components/VolunteerModal';
 import { ChatInterface } from '@/components/ChatInterface';
 import { useToast } from '@/hooks/use-toast';
+import { apiUrl } from '@/lib/utils';
 
 export interface MapHotspotData {
   id: string;
@@ -51,7 +52,8 @@ const Index = () => {
   // Notification WebSocket useEffect (as before)
   useEffect(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${wsProtocol}://${window.location.host}/ws/notifications`;
+    const backendHost = import.meta.env.VITE_API_BASE_URL?.replace(/^https?:\/\//, '') || 'localhost:8000';
+    const wsUrl = `${wsProtocol}://${backendHost}/ws/notifications`;
     notificationWs.current = new WebSocket(wsUrl);
     notificationWs.current.onopen = () => { console.log('Notification WS connected.'); toast({ title: "System", description: "Connected to live updates.", duration: 2000 }); };
     notificationWs.current.onmessage = (event) => {
@@ -129,7 +131,7 @@ const Index = () => {
       original_content: `Direct app request for ${type} assistance. Location selected via map.`,
     };
 
-    fetch('/api/v1/request/direct', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    fetch(apiUrl('/api/v1/request/direct'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     .then(async response => { const d = await response.json(); if (!response.ok) throw d; return d; })
     .then(data => {
       toast({ title: "Help Request Sent", description: "Your request has been received. Waiting for a volunteer." });
@@ -159,7 +161,7 @@ const Index = () => {
 
   const handleVolunteerVerification = useCallback((code: string) => {
     const payload = { verification_code: code };
-    fetch('/api/v1/volunteer/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    fetch(apiUrl('/api/v1/volunteer/verify'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     .then(async response => { const d = await response.json(); if (!response.ok || !d.success) throw d; return d; })
     .then(data => {
       if (data.details?.session_token && data.details?.volunteer_id) {
@@ -180,7 +182,7 @@ const Index = () => {
 
   const handleAcceptRequest = useCallback((requestId: string) => {
     if (!volunteerSessionToken) { /* ... error handling ... */ return; }
-    fetch(`/api/v1/request/${requestId}/accept`, { method: 'POST', headers: { 'Authorization': `Bearer ${volunteerSessionToken}` } })
+    fetch(apiUrl(`/api/v1/request/${requestId}/accept`), { method: 'POST', headers: { 'Authorization': `Bearer ${volunteerSessionToken}` } })
     .then(async response => { const d = await response.json(); if (!response.ok) { if (response.status === 401) { /* reset states */ } throw d; } return d; })
     .then(data => {
       toast({ title: "Request Accepted by You", description: `Waiting for chat for request ${requestId}.` });
@@ -200,7 +202,7 @@ const Index = () => {
   const handleCloseChat = useCallback(() => {
     setLiveChatRoomId(null); setCurrentUserChatToken(null); // User role can be kept or cleared based on desired flow post-chat
     if (isVolunteer && volunteerSessionToken) {
-      fetch('/api/v1/map/hotspots').then(r => r.json()).then(d => setMapHotspots(d)).catch(e => console.error("Re-fetch err", e));
+      fetch(apiUrl('/api/v1/map/hotspots')).then(r => r.json()).then(d => setMapHotspots(d)).catch(e => console.error("Re-fetch err", e));
     }
   }, [isVolunteer, volunteerSessionToken]);
 

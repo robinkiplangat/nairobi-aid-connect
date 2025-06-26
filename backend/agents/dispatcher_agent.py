@@ -2,10 +2,10 @@ import logging
 import asyncio # For potential background tasks or refined caching
 from datetime import datetime
 
-from ..models import schemas
-from ..services.database import db_service
-from ..services.message_bus import message_bus_service
-from ..services.config import settings
+from models import schemas
+from services.database import db_service
+from services.message_bus import message_bus_service
+from services.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,11 @@ class DispatcherAgent:
         """
         try:
             # Ensure message_bus_service is connected (or handle gracefully)
-            if not message_bus_service.redis_client or not message_bus_service.redis_client.is_connected():
+            if not message_bus_service.redis_client:
                 logger.error("DispatcherAgent: Message bus not connected. Cannot start listening.")
                 # Optionally, retry connection or raise an error that can be handled during startup
                 await message_bus_service.connect() # Attempt to connect if not already
-                if not message_bus_service.redis_client or not message_bus_service.redis_client.is_connected():
+                if not message_bus_service.redis_client:
                      logger.critical("DispatcherAgent: Failed to connect to message bus. Listener not started.")
                      return # Critical failure, cannot proceed
 

@@ -66,7 +66,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${wsProtocol}://${window.location.host}/ws/chat/${chatRoomId}/${userToken}`;
+    const backendHost = import.meta.env.VITE_API_BASE_URL?.replace(/^https?:\/\//, '') || 'localhost:8000';
+    const wsUrl = `${wsProtocol}://${backendHost}/ws/chat/${chatRoomId}/${userToken}`;
 
     ws.current = new WebSocket(wsUrl);
     setConnectionStatus(`Attempting to connect to ${chatRoomId.slice(-8)}...`);

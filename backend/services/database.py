@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo.errors import ConnectionFailure
-from .config import settings
-from ..models import schemas # Relative import from parent package
+from services.config import settings
+from models import schemas # Relative import from parent package
 from typing import List, Optional, Dict, Any
 import logging
 

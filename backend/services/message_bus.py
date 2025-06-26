@@ -6,7 +6,7 @@ import json
 from typing import Callable, Awaitable, Dict, Any, Optional
 import logging
 
-from .config import settings
+from services.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,14 @@ class MessageBusService:
         self._listener_tasks: list[asyncio.Task] = []
 
     async def connect(self):
-        if self.redis_client and self.redis_client.is_connected():
-            logger.info("Redis client already connected.")
-            return
+        if self.redis_client:
+            try:
+                await self.redis_client.ping()
+                logger.info("Redis client already connected.")
+                return
+            except Exception:
+                logger.info("Redis client exists but not connected, reconnecting...")
+                self.redis_client = None
 
         logger.info(f"Connecting to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT} DB: {settings.REDIS_DB}")
         try:
@@ -72,10 +77,14 @@ class MessageBusService:
 
 
     async def publish(self, topic: str, message: Dict[Any, Any]):
-        if not self.redis_client or not self.redis_client.is_connected():
+        if not self.redis_client:
             logger.error("Cannot publish: Redis client is not connected.")
-            # Optionally, try to reconnect or raise an error
-            # await self.connect() # Or handle this more gracefully
+            raise ConnectionError("Message bus not connected. Cannot publish.")
+        
+        try:
+            await self.redis_client.ping()
+        except Exception:
+            logger.error("Cannot publish: Redis client is not connected.")
             raise ConnectionError("Message bus not connected. Cannot publish.")
 
         try:

@@ -1,10 +1,11 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
-from ..models import schemas
-from ..services.database import db_service # Assuming global instance
-from ..services.message_bus import message_bus_service # Assuming global instance
+from models import schemas
+from services.database import db_service # Assuming global instance
+from services.message_bus import message_bus_service # Assuming global instance
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +148,7 @@ class VerificationAgent:
             details=response_details
         )
 
-from ..services.config import settings # Import settings for session timeout
+from services.config import settings # Import settings for session timeout
 
 # Global instance
 verification_agent = VerificationAgent()

@@ -4,9 +4,9 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 
-from ..models import schemas
-from ..services.message_bus import message_bus_service
-from ..services.config import settings
+from models import schemas
+from services.message_bus import message_bus_service
+from services.config import settings
 # We will use message_bus_service.redis_client directly for chat session storage for now.
 # A dedicated ChatSessionService could be made later if complexity grows.
 
@@ -23,10 +23,10 @@ class CommsAgent:
         Subscribes to relevant topics on the message bus.
         """
         try:
-            if not message_bus_service.redis_client or not message_bus_service.redis_client.is_connected():
+            if not message_bus_service.redis_client:
                 logger.error("CommsAgent: Message bus not connected. Cannot start listening.")
                 await message_bus_service.connect()
-                if not message_bus_service.redis_client or not message_bus_service.redis_client.is_connected():
+                if not message_bus_service.redis_client:
                     logger.critical("CommsAgent: Failed to connect to message bus. Listener not started.")
                     return
 
