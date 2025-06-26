@@ -51,18 +51,7 @@ const Index = () => {
 
   // Mock zone data - this will be passed to MapComponent
   // Later, this could be fetched from an API
-  const [currentZoneData, setCurrentZoneData] = useState<ZoneStatusData[]>([
-    { name: 'CBD', lat: -1.2921, lng: 36.8219, status: 'danger', intensity: 0.8 },
-    { name: 'Westlands', lat: -1.2676, lng: 36.8062, status: 'moderate', intensity: 0.6 },
-    { name: 'Kibera', lat: -1.3133, lng: 36.7892, status: 'calm', intensity: 0.3 },
-    { name: 'Parklands', lat: -1.2632, lng: 36.8103, status: 'moderate', intensity: 0.5 },
-    { name: 'Industrial Area', lat: -1.3031, lng: 36.8073, status: 'danger', intensity: 0.9 },
-    { name: 'Gigiri', lat: -1.2507, lng: 36.8673, status: 'calm', intensity: 0.2 },
-    { name: 'Karen', lat: -1.2741, lng: 36.7540, status: 'moderate', intensity: 0.4 }, // Corrected spelling
-    { name: 'Muthaiga', lat: -1.2195, lng: 36.8965, status: 'calm', intensity: 0.1 },
-    { name: 'South B', lat: -1.3152, lng: 36.8302, status: 'danger', intensity: 0.7 },
-    { name: 'Hurlingham', lat: -1.2841, lng: 36.8155, status: 'moderate', intensity: 0.5 },
-  ]);
+  const [currentZoneData, setCurrentZoneData] = useState<ZoneStatusData[]>([]);
 
   // Notification WebSocket useEffect (as before)
   useEffect(() => {
@@ -95,6 +84,33 @@ const Index = () => {
     return () => { if (notificationWs.current) notificationWs.current.close(); };
   }, [myLastRequestId, currentVolunteerId, currentUserRoleInChat, toast]);
 
+  useEffect(() => {
+    const fetchZoneData = () => {
+      fetch(apiUrl('/api/v1/map/zones'))
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then((data: ZoneStatusData[]) => {
+          setCurrentZoneData(data);
+        })
+        .catch(error => {
+          console.error('Failed to fetch zone data:', error);
+          toast({
+            title: 'Could not load zone data',
+            description: 'The heatmap may not be available.',
+            variant: 'destructive',
+          });
+        });
+    };
+
+    fetchZoneData(); // Fetch initially
+    const zoneInterval = setInterval(fetchZoneData, 60000); // Poll every 60 seconds
+
+    return () => clearInterval(zoneInterval); // Cleanup on unmount
+  }, [toast]);
 
   const handleMapClick = useCallback((coordinates: [number, number]) => {
     if (isSelectingLocation && showHelpModal && !isChatVisible) { // Ensure help modal is open for this action

@@ -352,6 +352,30 @@ async def get_map_hotspots(limit: int = 200):
     try: return await content_agent.fetch_active_hotspots(limit=limit)
     except Exception as e: logger.error(f"Error in /hotspots: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
 
+# A new endpoint to provide zone status data for the heatmap
+@app.get("/api/v1/map/zones", response_model=List[schemas.ZoneStatus])
+def get_map_zones():
+    """
+    Provides a list of predefined zone statuses for the heatmap overlay.
+    
+    In a real-world scenario, this data would be dynamically generated
+    based on real-time data analysis, incident reports, and other factors.
+    For now, it returns a static, mock dataset.
+    """
+    mock_zones = [
+        {"name": "CBD", "lat": -1.2921, "lng": 36.8219, "status": "danger", "intensity": 0.8},
+        {"name": "Westlands", "lat": -1.2676, "lng": 36.8062, "status": "moderate", "intensity": 0.6},
+        {"name": "Kibera", "lat": -1.3133, "lng": 36.7892, "status": "calm", "intensity": 0.3},
+        {"name": "Parklands", "lat": -1.2632, "lng": 36.8103, "status": "moderate", "intensity": 0.5},
+        {"name": "Industrial Area", "lat": -1.3031, "lng": 36.8073, "status": "danger", "intensity": 0.9},
+        {"name": "Gigiri", "lat": -1.2507, "lng": 36.8673, "status": "calm", "intensity": 0.2},
+        {"name": "Karen", "lat": -1.2741, "lng": 36.7540, "status": "moderate", "intensity": 0.4},
+        {"name": "Muthaiga", "lat": -1.2195, "lng": 36.8965, "status": "calm", "intensity": 0.1},
+        {"name": "South B", "lat": -1.3152, "lng": 36.8302, "status": "danger", "intensity": 0.7},
+        {"name": "Hurlingham", "lat": -1.2841, "lng": 36.8155, "status": "moderate", "intensity": 0.5},
+    ]
+    return mock_zones
+
 # --- WebSocket Chat Endpoint ---
 from fastapi import WebSocket, WebSocketDisconnect
 

@@ -99,13 +99,13 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       let color, fillColor, opacity;
       switch (zone.status) {
         case 'danger':
-          color = '#dc2626';
-          fillColor = '#ef4444';
+          color = '#ea580c'; // orange-600
+          fillColor = '#f97316'; // orange-500
           opacity = 0.7;
           break;
         case 'moderate':
-          color = '#ea580c';
-          fillColor = '#f97316';
+          color = '#eab308'; // yellow-500
+          fillColor = '#facc15'; // yellow-400
           opacity = 0.6;
           break;
         case 'calm':
@@ -293,11 +293,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 <span className="text-xs text-gray-700">Calm area</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                <div className="w-4 h-4 bg-yellow-400 rounded"></div>
                 <span className="text-xs text-gray-700">Moderate concern</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
+                <div className="w-4 h-4 bg-orange-500 rounded"></div>
                 <span className="text-xs text-gray-700">Danger</span>
               </div>
             </div>
