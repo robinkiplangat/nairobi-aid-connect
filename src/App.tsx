@@ -10,6 +10,7 @@ import PartnerDashboard from "./pages/partner/PartnerDashboard";
 import Login from "./pages/partner/Login";
 import CaseManagement from "./pages/partner/CaseManagement";
 import Settings from "./pages/partner/Settings";
+import VolunteerManagement from "./pages/partner/VolunteerManagement";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/partner" element={<PartnerDashboard />} />
           <Route path="/partner/login" element={<Login />} />
           <Route path="/partner/cases" element={<CaseManagement />} />
+          <Route path="/partner/volunteers" element={<VolunteerManagement />} />
           <Route path="/partner/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

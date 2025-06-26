@@ -38,7 +38,15 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div 
+      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative"
+      style={{
+        backgroundImage: `linear-gradient(rgba(248, 250, 252, 0.95), rgba(248, 250, 252, 0.95)), url('https://images.unsplash.com/photo-1570284613060-766c33850e79?q=80&w=2070&auto=format&fit=crop')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
@@ -49,58 +57,60 @@ const Login = () => {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in to your account</CardTitle>
-            <CardDescription>
+        <Card className="bg-white/90 backdrop-blur-sm border-gray-200/50 shadow-xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-gray-900">Sign in to your account</CardTitle>
+            <CardDescription className="text-gray-600">
               Enter your credentials to access the partner dashboard
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="pt-0">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-md">
+                <div className="flex items-center space-x-2 text-red-600 bg-red-50/80 p-3 rounded-md border border-red-200">
                   <AlertTriangle className="h-4 w-4" />
                   <span className="text-sm">{error}</span>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="text-gray-700 font-medium">Email address</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
+                  className="bg-white/80 border-gray-200"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  className="bg-white/80 border-gray-200"
                   required
                 />
               </div>
 
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-gray-900 hover:bg-gray-800" 
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
 
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-                <p className="font-medium">Demo Credentials:</p>
-                <p>Email: admin@sos-nairobi.org</p>
-                <p>Password: demo123</p>
+              <div className="text-sm text-gray-600 bg-blue-50/80 p-4 rounded-md border border-blue-200">
+                <p className="font-medium text-blue-900 mb-2">Demo Credentials:</p>
+                <p className="text-blue-800">Email: admin@sos-nairobi.org</p>
+                <p className="text-blue-800">Password: demo123</p>
               </div>
             </form>
           </CardContent>
@@ -109,7 +119,7 @@ const Login = () => {
         <div className="text-center">
           <Link 
             to="/" 
-            className="text-sm text-blue-600 hover:text-blue-500"
+            className="text-sm text-blue-600 hover:text-blue-500 font-medium"
           >
             ← Back to main site
           </Link>
