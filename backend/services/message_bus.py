@@ -36,6 +36,7 @@ class MessageBusService:
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
+                username=settings.REDIS_USERNAME,
                 password=settings.REDIS_PASSWORD,
                 auto_close_connection_pool=False # Keep connection pool open
             )
