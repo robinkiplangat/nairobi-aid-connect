@@ -53,13 +53,32 @@ if settings.ENABLE_RATE_LIMITING:
         logger.warning("slowapi not installed. Rate limiting disabled.")
 
 # CORS Configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://nairobi-aid-connect.vercel.app",
+def get_cors_origins():
+    """Get CORS allowed origins from environment variables or use defaults."""
+    # Default origins for local development
+    default_origins = [
         "http://localhost:3000",
         "http://localhost:5173"
-    ] if settings.APP_ENV == "production" else ["*"],
+    ]
+    
+    # Get origins from environment variable
+    if settings.CORS_ALLOWED_ORIGINS:
+        env_origins = [origin.strip() for origin in settings.CORS_ALLOWED_ORIGINS.split(",")]
+        return env_origins + default_origins
+    
+    # Fallback: return all origins in development, restricted in production
+    if settings.APP_ENV == "production":
+        logger.warning("CORS_ALLOWED_ORIGINS not set in production. Using restrictive defaults.")
+        return default_origins  # Very restrictive for security
+    else:
+        return ["*"]  # Allow all in development
+
+allowed_origins = get_cors_origins()
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
