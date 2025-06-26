@@ -32,9 +32,25 @@ class Settings(BaseSettings):
     # Define a tag for the stream rules for easy management (add/delete)
     TWITTER_STREAM_RULE_TAG: str = "sos-nairobi-default-rules"
 
+    # Enhanced Security & Privacy Settings
+    LOCATION_OBFUSCATION_FACTOR: float = 0.002  # Increased for better privacy
+    LOCATION_PRECISION_DIGITS: int = 3  # Limit GPS precision
+    ENABLE_LOCATION_ANONYMIZATION: bool = True
+    DATA_RETENTION_DAYS: int = 30  # Auto-delete old data
+    SESSION_TIMEOUT_MINUTES: int = 30
+    MAX_REQUESTS_PER_MINUTE: int = 10
+    REQUIRE_HTTPS: bool = True
+    ENABLE_RATE_LIMITING: bool = True
+    
+    # Encryption Settings
+    ENCRYPTION_KEY: Optional[str] = None  # Set via environment variable
+    
+    # Monitoring & Logging
+    SENTRY_DSN: Optional[str] = None
+    LOG_LEVEL: str = "INFO"
+    ENABLE_SECURITY_LOGGING: bool = True
 
     # Agent Specific Settings
-    LOCATION_OBFUSCATION_FACTOR: float = 0.001 # Example: degree offset for privacy
     VOLUNTEER_MATCH_RADIUS_KM: float = 5.0
     CHAT_SESSION_TTL_HOURS: int = 24
     VOLUNTEER_SESSION_TIMEOUT_HOURS: int = 4 # For volunteer HTTP session tokens
@@ -50,9 +66,22 @@ class Settings(BaseSettings):
         env_file_encoding = 'utf-8'
         extra = "ignore" # Ignore extra fields from .env
 
+# Production-specific settings
+class ProductionSettings(Settings):
+    APP_ENV: str = "production"
+    DEBUG_MODE: bool = False
+    ENABLE_TWITTER_MONITORING: bool = True
+    ENABLE_RATE_LIMITING: bool = True
+    REQUIRE_HTTPS: bool = True
+    ENABLE_SECURITY_LOGGING: bool = True
+    LOG_LEVEL: str = "WARNING"
+
 # Use lru_cache to load settings only once
 @lru_cache()
 def get_settings() -> Settings:
+    env = Settings().APP_ENV
+    if env == "production":
+        return ProductionSettings()
     return Settings()
 
 # Make settings easily accessible
@@ -64,8 +93,14 @@ if __name__ == "__main__":
     print(f"MongoDB URI: {settings.MONGODB_URI}")
     print(f"Redis Host: {settings.REDIS_HOST}")
     print(f"Debug Mode: {settings.DEBUG_MODE}")
+    print(f"App Environment: {settings.APP_ENV}")
+    print(f"Location Obfuscation: {settings.LOCATION_OBFUSCATION_FACTOR}")
+    print(f"Rate Limiting: {settings.ENABLE_RATE_LIMITING}")
     # To test with a .env file, create a file named ".env" in the same directory as this script
     # (or the root of where the app is run from, typically `backend/`)
     # Example .env content:
     # MONGODB_URI="mongodb://user:pass@customhost:27017/custom_db"
     # DEBUG_MODE=False
+    # APP_ENV=production
+    # ENCRYPTION_KEY=your-secure-encryption-key
+    # SENTRY_DSN=your-sentry-dsn

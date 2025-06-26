@@ -1,17 +1,26 @@
-from fastapi import FastAPI, HTTPException, Body, WebSocket
-from typing import List, Dict, Optional # Added Dict, Optional
+from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from typing import List, Dict, Optional
 import uuid
 from datetime import datetime
 import logging
 import asyncio
 import json
+import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Security logger
+security_logger = logging.getLogger('security')
+security_logger.setLevel(logging.INFO)
+
 from models import schemas
 from services.database import db_service
 from services.message_bus import message_bus_service
+from services.config import settings
 from agents.intake_agent import intake_agent
 from agents.verification_agent import verification_agent
 from agents.dispatcher_agent import dispatcher_agent
@@ -23,6 +32,56 @@ app = FastAPI(
     description="Multi-agent system for coordinating emergency aid.",
     version="0.1.0"
 )
+
+# Security Middleware Configuration
+limiter = None
+if settings.ENABLE_RATE_LIMITING:
+    try:
+        from slowapi import Limiter, _rate_limit_exceeded_handler
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+        
+        limiter = Limiter(key_func=get_remote_address)
+        app.state.limiter = limiter
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        logger.info("Rate limiting enabled")
+    except ImportError:
+        logger.warning("slowapi not installed. Rate limiting disabled.")
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://nairobi-aid-connect.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ] if settings.APP_ENV == "production" else ["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+# Trusted Host Middleware
+if settings.APP_ENV == "production":
+    app.add_middleware(
+        TrustedHostMiddleware, 
+        allowed_hosts=[
+            "nairobi-aid-connect.onrender.com",
+            "localhost",
+            "127.0.0.1"
+        ]
+    )
+    
+    # Force HTTPS in production
+    if settings.REQUIRE_HTTPS:
+        app.add_middleware(HTTPSRedirectMiddleware)
+
+# Security monitoring function
+def log_security_event(event_type: str, details: dict, user_ip: str = "unknown"):
+    if settings.ENABLE_SECURITY_LOGGING:
+        security_logger.warning(
+            f"Security Event: {event_type} from {user_ip} - {details}"
+        )
 
 # --- Notification WebSocket Manager ---
 class NotificationSocketManager:
@@ -95,6 +154,23 @@ async def redis_notification_listener():
         except Exception as e:
             logger.error(f"Error closing pubsub object: {e}", exc_info=True)
 
+# Initialize Sentry for error tracking
+if settings.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            integrations=[FastApiIntegration()],
+            traces_sample_rate=0.1,
+            environment=settings.APP_ENV,
+        )
+        logger.info("Sentry monitoring initialized")
+    except ImportError:
+        logger.warning("Sentry SDK not installed. Error tracking disabled.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Sentry: {e}")
 
 # Lifespan events
 @app.on_event("startup")
@@ -168,8 +244,20 @@ async def shutdown_event():
 async def read_root(): return {"status": "SOS Nairobi Backend is running"}
 
 @app.post("/api/v1/request/direct", response_model=schemas.GenericResponse, tags=["Intake Agent"])
-async def submit_direct_request(payload: schemas.DirectHelpRequestPayload = Body(...)):
-    logger.info(f"API /api/v1/request/direct received: {payload.model_dump_json(indent=2)}")
+async def submit_direct_request(request: Request, payload: schemas.DirectHelpRequestPayload = Body(...)):
+    # Apply rate limiting if enabled
+    if limiter and settings.ENABLE_RATE_LIMITING:
+        await limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")(lambda: None)()
+    
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"API /api/v1/request/direct received from {client_ip}: {payload.model_dump_json(indent=2)}")
+    
+    # Log security event
+    log_security_event("direct_request", {
+        "content_length": len(payload.original_content),
+        "location": payload.location_text[:50] + "..." if payload.location_text and len(payload.location_text) > 50 else (payload.location_text or "none")
+    }, client_ip)
+    
     try:
         details = await intake_agent.handle_direct_request(payload)
         return schemas.GenericResponse(message="Request received.", details={"request_id": details.request_id, "status": details.status})
@@ -177,25 +265,39 @@ async def submit_direct_request(payload: schemas.DirectHelpRequestPayload = Body
         logger.error(f"Error in /api/v1/request/direct: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-from fastapi import Depends, Header # Ensure Depends and Header are imported
-
 async def get_volunteer_from_token(authorization: Optional[str] = Header(None)) -> str:
-    if authorization is None: raise HTTPException(status_code=401, detail="Auth header missing.")
+    if authorization is None: 
+        raise HTTPException(status_code=401, detail="Auth header missing.")
     parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer": raise HTTPException(status_code=401, detail="Invalid auth scheme.")
+    if len(parts) != 2 or parts[0].lower() != "bearer": 
+        raise HTTPException(status_code=401, detail="Invalid auth scheme.")
     token = parts[1]
     volunteer_id = await verification_agent.validate_session_token(token)
-    if not volunteer_id: raise HTTPException(status_code=401, detail="Invalid/expired session token.")
+    if not volunteer_id: 
+        raise HTTPException(status_code=401, detail="Invalid/expired session token.")
     return volunteer_id
 
 @app.post("/api/v1/volunteer/verify", response_model=schemas.GenericResponse, tags=["Verification Agent"])
-async def verify_volunteer(payload: schemas.VolunteerVerificationPayload = Body(...)):
-    logger.info(f"API /api/v1/volunteer/verify received: {payload.model_dump_json(indent=2)}")
+async def verify_volunteer(request: Request, payload: schemas.VolunteerVerificationPayload = Body(...)):
+    # Apply rate limiting if enabled
+    if limiter and settings.ENABLE_RATE_LIMITING:
+        await limiter.limit("3/minute")(lambda: None)()
+    
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"API /api/v1/volunteer/verify received from {client_ip}: {payload.model_dump_json(indent=2)}")
+    
+    # Log security event
+    log_security_event("volunteer_verification", {
+        "verification_code_length": len(payload.verification_code)
+    }, client_ip)
+    
     try:
         response = await verification_agent.handle_verification_request(payload)
-        if not response.success: raise HTTPException(status_code=400, detail=response.message)
+        if not response.success: 
+            raise HTTPException(status_code=400, detail=response.message)
         return response
-    except HTTPException: raise
+    except HTTPException: 
+        raise
     except Exception as e:
         logger.error(f"Error in /api/v1/volunteer/verify: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
