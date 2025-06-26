@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapHotspotData } from '@/pages/Index'; // New type
+import { MapHotspotData } from '@/pages/Index';
+import { Button } from '@/components/ui/button';
+import { ToggleLeft, ToggleRight } from 'lucide-react';
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -12,7 +14,7 @@ L.Icon.Default.mergeOptions({
 });
 
 interface MapComponentProps {
-  hotspots: MapHotspotData[]; // New prop
+  hotspots: MapHotspotData[];
   onMapClick: (coordinates: [number, number]) => void;
   selectedLocation: [number, number] | null;
   isVolunteer: boolean;
@@ -21,8 +23,22 @@ interface MapComponentProps {
   mapIsInteractive?: boolean;
 }
 
+// Zone status data for heatmap
+const zoneData = [
+  { lat: -1.2921, lng: 36.8219, status: 'danger', intensity: 0.8 }, // CBD
+  { lat: -1.2676, lng: 36.8062, status: 'moderate', intensity: 0.6 }, // Westlands
+  { lat: -1.3133, lng: 36.7892, status: 'calm', intensity: 0.3 }, // Kibera
+  { lat: -1.2632, lng: 36.8103, status: 'moderate', intensity: 0.5 }, // Parklands
+  { lat: -1.3031, lng: 36.8073, status: 'danger', intensity: 0.9 }, // Industrial Area
+  { lat: -1.2507, lng: 36.8673, status: 'calm', intensity: 0.2 }, // Gigiri
+  { lat: -1.2741, lng: 36.7540, status: 'moderate', intensity: 0.4 }, // Karen
+  { lat: -1.2195, lng: 36.8965, status: 'calm', intensity: 0.1 }, // Muthaiga
+  { lat: -1.3152, lng: 36.8302, status: 'danger', intensity: 0.7 }, // South B
+  { lat: -1.2841, lng: 36.8155, status: 'moderate', intensity: 0.5 }, // Hurlingham
+];
+
 export const MapComponent: React.FC<MapComponentProps> = ({
-  hotspots, // New prop
+  hotspots,
   onMapClick,
   selectedLocation,
   isVolunteer,
@@ -34,6 +50,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const map = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const selectedMarkerRef = useRef<L.Marker | null>(null);
+  const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
+  
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -41,15 +60,95 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map.current);
+    
     map.current.on('click', (e) => {
       const { lat, lng } = e.latlng;
       console.log('Map click event:', lat, lng);
       onMapClick([lat, lng]);
     });
+
+    // Initialize heatmap layer
+    heatmapLayerRef.current = L.layerGroup();
+    
     return () => {
       map.current?.remove();
     };
   }, [onMapClick]);
+
+  // Create heatmap hexagons
+  const createHeatmapLayer = () => {
+    if (!map.current || !heatmapLayerRef.current) return;
+
+    // Clear existing heatmap
+    heatmapLayerRef.current.clearLayers();
+
+    zoneData.forEach((zone) => {
+      const hexRadius = 0.008; // Adjust size of hexagons
+      const hexPoints = [];
+      
+      // Create hexagon points
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * 60) * (Math.PI / 180);
+        const lat = zone.lat + hexRadius * Math.cos(angle);
+        const lng = zone.lng + hexRadius * Math.sin(angle);
+        hexPoints.push([lat, lng] as [number, number]);
+      }
+
+      // Determine color based on status
+      let color, fillColor, opacity;
+      switch (zone.status) {
+        case 'danger':
+          color = '#dc2626';
+          fillColor = '#ef4444';
+          opacity = 0.7;
+          break;
+        case 'moderate':
+          color = '#ea580c';
+          fillColor = '#f97316';
+          opacity = 0.6;
+          break;
+        case 'calm':
+          color = '#16a34a';
+          fillColor = '#22c55e';
+          opacity = 0.5;
+          break;
+        default:
+          color = '#6b7280';
+          fillColor = '#9ca3af';
+          opacity = 0.4;
+      }
+
+      const hexagon = L.polygon(hexPoints, {
+        color: color,
+        fillColor: fillColor,
+        fillOpacity: opacity * zone.intensity,
+        weight: 1,
+        opacity: 0.8
+      });
+
+      // Add popup with zone information
+      hexagon.bindPopup(`
+        <div class="text-center">
+          <h3 class="font-semibold capitalize">${zone.status.replace('_', ' ')} Zone</h3>
+          <p class="text-sm text-gray-600">Status as of now</p>
+        </div>
+      `);
+
+      heatmapLayerRef.current!.addLayer(hexagon);
+    });
+  };
+
+  // Toggle heatmap visibility
+  useEffect(() => {
+    if (!map.current || !heatmapLayerRef.current) return;
+
+    if (showHeatmap) {
+      createHeatmapLayer();
+      map.current.addLayer(heatmapLayerRef.current);
+    } else {
+      map.current.removeLayer(heatmapLayerRef.current);
+    }
+  }, [showHeatmap]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -69,7 +168,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     }
   }, [selectedLocation]);
 
-  // Update help request markers (now hotspots)
   useEffect(() => {
     if (!map.current) return;
 
@@ -148,19 +246,61 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
+      
+      {/* Map Title */}
       <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
         <h2 className="text-lg font-bold text-gray-800">SOS Nairobi</h2>
         <p className="text-sm text-gray-600">Live Emergency Response Map</p>
       </div>
       
+      {/* Heatmap Toggle and Legend */}
+      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+        {/* Toggle Button */}
+        <div className="p-3 border-b border-gray-200">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className="flex items-center space-x-2 w-full justify-start"
+          >
+            {showHeatmap ? (
+              <ToggleRight className="h-4 w-4 text-blue-500" />
+            ) : (
+              <ToggleLeft className="h-4 w-4 text-gray-400" />
+            )}
+            <span className="text-sm font-medium">Zone Status</span>
+          </Button>
+        </div>
+        
+        {/* Legend */}
+        {showHeatmap && (
+          <div className="p-3">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <span className="text-xs text-gray-700">Calm area</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                <span className="text-xs text-gray-700">Moderate concern</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-500 rounded"></div>
+                <span className="text-xs text-gray-700">Danger</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
       {isSelectingLocation && (
-        <div className="absolute bottom-4 left-4 bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg animate-pulse">
+        <div className="absolute bottom-4 right-4 bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg animate-pulse">
           <p className="text-sm">📍 Click anywhere on the map to select your location</p>
         </div>
       )}
       
       {selectedLocation && !isSelectingLocation && (
-        <div className="absolute bottom-4 left-4 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg">
+        <div className="absolute bottom-4 right-4 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg">
           <p className="text-sm">📍 Location selected. Choose help type →</p>
         </div>
       )}
