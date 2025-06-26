@@ -38,6 +38,8 @@ websockets
 slowapi  # Rate limiting
 sentry-sdk[fastapi]  # Error tracking
 cryptography  # Data encryption
+passlib[bcrypt] # For password hashing
+python-jose[cryptography] # For JWT handling
 
 # Testing
 pytest

@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     DEBUG_MODE: bool = True
     ENABLE_TWITTER_MONITORING: bool = False # Feature flag for Twitter monitoring
 
+    # JWT Settings for Partner Organization Authentication
+    JWT_SECRET_KEY: str = "your-secret-key-for-jwt-please-change-in-env" # IMPORTANT: Override in .env
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 # 24 hours, adjust as needed
+
     class Config:
         # Load .env file if it exists
         env_file = ".env"

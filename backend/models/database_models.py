@@ -3,7 +3,11 @@ from typing import Literal, Optional, List
 from datetime import datetime
 import uuid
 from bson import ObjectId
-from .schemas import Coordinates, NewHelpRequest, Volunteer, VolunteerStatus, MatchAssignment, ChatSessionEstablished, Resource, Update, MapHotspot
+from .schemas import (
+    Coordinates, NewHelpRequest, Volunteer, VolunteerStatus,
+    MatchAssignment, ChatSessionEstablished, Resource, Update, MapHotspot,
+    Organization, OrganizationUser, OrganizationApiKey
+)
 
 # MongoDB ObjectId wrapper for Pydantic v2
 class PyObjectId(ObjectId):
@@ -85,8 +89,87 @@ class MongoMapHotspot(MapHotspot):
         json_encoders={ObjectId: str}
     )
 
+# --- Organization MongoDB Models ---
+
+class MongoOrganization(Organization):
+    # The 'id' field from Pydantic schema will be '_id' in MongoDB.
+    # We use PyObjectId for '_id' to ensure it's a MongoDB ObjectId.
+    # The alias in the Pydantic schema 'Organization' (id: str = Field(default_factory=..., alias="id"))
+    # might conflict if we also try to alias '_id' to 'id' here.
+    # It's generally better to have the Pydantic model define 'id' as the string representation
+    # and the Mongo model use '_id' as PyObjectId.
+    # For this model, Organization already defines 'organization_id' as the primary string ID.
+    # We can add '_id' for MongoDB's internal usage.
+    mongo_db_id: Optional[PyObjectId] = Field(default=None, alias="_id")
+
+    model_config = ConfigDict(
+        populate_by_name=True, # Allows using '_id' as 'mongo_db_id'
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
+class MongoOrganizationUser(OrganizationUser):
+    mongo_db_id: Optional[PyObjectId] = Field(default=None, alias="_id")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
+class MongoOrganizationApiKey(OrganizationApiKey):
+    mongo_db_id: Optional[PyObjectId] = Field(default=None, alias="_id")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
 # MongoDB Collection Indexes Configuration
 MONGODB_INDEXES = {
+    "organizations": [
+        {
+            "keys": [("name", 1)],
+            "name": "organization_name_index",
+            "unique": True
+        },
+        {
+            "keys": [("organization_type", 1)], # Schema uses 'type' as alias
+            "name": "organization_type_index"
+        },
+        {
+            "keys": [("is_verified", 1)],
+            "name": "organization_is_verified_index"
+        }
+    ],
+    "organization_users": [
+        {
+            "keys": [("email", 1)],
+            "name": "org_user_email_index",
+            "unique": True
+        },
+        {
+            "keys": [("organization_id", 1)],
+            "name": "org_user_organization_id_index"
+        },
+        {
+            "keys": [("role", 1)],
+            "name": "org_user_role_index"
+        }
+    ],
+    "organization_api_keys": [
+        {
+            "keys": [("hashed_key", 1)], # For looking up by actual API key
+            "name": "org_api_key_hashed_key_index",
+            "unique": True,
+            "sparse": True # Since not all documents might have it initially if created differently
+        },
+        {
+            "keys": [("organization_id", 1)],
+            "name": "org_api_key_organization_id_index"
+        }
+    ],
     "help_requests": [
         {
             "keys": [("status", 1)],

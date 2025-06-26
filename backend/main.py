@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header
+from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import List, Dict, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import asyncio
 import json
@@ -26,6 +27,9 @@ from agents.verification_agent import verification_agent
 from agents.dispatcher_agent import dispatcher_agent
 from agents.comms_agent import comms_agent, CommsAgent # CommsAgent class for static methods
 from agents.content_agent import content_agent
+from services.organization_service import organization_service
+from services.security import create_access_token, verify_access_token
+from models import database_models # For type hinting current_user
 
 app = FastAPI(
     title="SOS Nairobi Backend",
@@ -405,3 +409,174 @@ async def websocket_notification_endpoint(websocket: WebSocket):
     finally:
         notification_manager.disconnect(websocket)
         logger.info("Cleaned up notification WS connection.")
+
+# --- Partner Organization Authentication ---
+
+# OAuth2PasswordBearer for partner login (tokenUrl is relative to the app root)
+# The path "/api/v1/partner/auth/token" will be created below.
+oauth2_scheme_partner = OAuth2PasswordBearer(tokenUrl="api/v1/partner/auth/token")
+
+async def get_current_partner_user(token: str = Depends(oauth2_scheme_partner)) -> database_models.MongoOrganizationUser:
+    """
+    Dependency to get the current authenticated partner organization user.
+    Verifies JWT token and returns the user model.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    token_data = verify_access_token(token, credentials_exception) # verify_access_token is in security.py
+    if not token_data or not token_data.user_id: # Ensure user_id is in token
+        logger.warning(f"Token verification failed or user_id missing in token. Token data: {token_data}")
+        raise credentials_exception
+
+    user = await organization_service.get_organization_user_by_id(token_data.user_id)
+    if user is None:
+        logger.warning(f"User not found for user_id {token_data.user_id} from token.")
+        raise credentials_exception
+    if not user.is_active: # Check if the user account is active
+        logger.warning(f"User {user.email} is inactive.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return user
+
+@app.post("/api/v1/partner/auth/register", response_model=schemas.OrganizationUser, tags=["Partner Auth"])
+async def register_partner_organization_user(payload: schemas.PartnerRegisterPayload = Body(...)):
+    """
+    Register a new organization and its first admin user.
+    """
+    # 1. Check if organization already exists by name
+    existing_org = await organization_service.get_organization_by_name(payload.organization_name)
+    if existing_org:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Organization with name '{payload.organization_name}' already exists."
+        )
+
+    # 2. Check if the admin email is already taken
+    existing_user = await organization_service.get_organization_user_by_email(payload.admin_email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email '{payload.admin_email}' already exists."
+        )
+
+    # 3. Create the organization
+    org_create_schema = schemas.OrganizationCreate(
+        name=payload.organization_name,
+        type=payload.organization_type # Pydantic schema uses 'type' as alias for organization_type
+    )
+    organization = await organization_service.create_organization(org_create_schema)
+    if not organization or not organization.organization_id:
+        logger.error(f"Failed to create organization with name {payload.organization_name}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create organization."
+        )
+
+    # 4. Create the admin user for this organization
+    user_create_schema = schemas.OrganizationUserCreate(
+        email=payload.admin_email,
+        full_name=payload.admin_full_name,
+        password=payload.admin_password,
+        organization_id=organization.organization_id, # Link user to the newly created org
+        role="admin" # First user of an organization defaults to admin
+    )
+    # Pass organization_id explicitly as it's required by create_organization_user
+    org_user = await organization_service.create_organization_user(user_create_schema, organization_id=organization.organization_id)
+
+    if not org_user:
+        # TODO: Consider rollback for organization creation if user creation fails.
+        # This could involve deleting the organization or marking it as inactive/pending user.
+        # For now, log the error and raise HTTP 500.
+        logger.error(f"Failed to create admin user for new organization {organization.organization_id}, though organization was created.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create admin user for the organization. Organization creation might need manual review."
+        )
+
+    # The schemas.OrganizationUser model should correctly exclude sensitive fields like hashed_password for the response.
+    return org_user
+
+
+@app.post("/api/v1/partner/auth/token", response_model=schemas.Token, tags=["Partner Auth"])
+async def login_partner_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Partner organization user login to get an access token.
+    Frontend should send 'username' (which is email) and 'password' as form data.
+    """
+    user = await organization_service.verify_organization_user_credentials(
+        email=form_data.username, # form_data.username is used for the email
+        password=form_data.password
+    )
+    if not user or not user.user_id: # Ensure user and user.user_id are valid
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_data = {
+        "sub": user.email, # Subject of the token is user's email
+        "user_id": str(user.user_id), # Ensure user_id is string for JWT
+        "organization_id": str(user.organization_id), # Ensure organization_id is string
+        "role": user.role
+    }
+    access_token = create_access_token(
+        data=access_token_data,
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/v1/partner/auth/me", response_model=schemas.OrganizationUser, tags=["Partner Auth"])
+async def read_partner_users_me(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Get current authenticated partner organization user.
+    """
+    # current_user is already an instance of MongoOrganizationUser thanks to the dependency.
+    # Pydantic will handle the conversion to the response_model schemas.OrganizationUser.
+    return current_user
+
+# --- Partner Dashboard API Endpoints (Initial Placeholders) ---
+
+@app.get("/api/v1/partner/dashboard/summary", response_model=schemas.GenericResponse, tags=["Partner Dashboard"])
+async def get_partner_dashboard_summary(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for partner dashboard summary.
+    Requires authenticated partner user.
+    """
+    # In the future, this would aggregate data specific to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Dashboard summary for organization {current_user.organization_id} (user: {current_user.email}).",
+        details={
+            "organization_id": current_user.organization_id,
+            "user_role": current_user.role,
+            "active_cases_count": 0, # Placeholder
+            "available_resources_count": 0 # Placeholder
+        }
+    )
+
+@app.get("/api/v1/partner/cases", response_model=schemas.GenericResponse, tags=["Partner Dashboard"]) # Adjust response_model later
+async def get_partner_cases(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for listing active cases for the partner organization.
+    Requires authenticated partner user.
+    """
+    # TODO: Implement logic to fetch cases assigned to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Active cases for organization {current_user.organization_id}.",
+        details={"cases": []} # Placeholder
+    )
+
+@app.get("/api/v1/partner/resources", response_model=schemas.GenericResponse, tags=["Partner Dashboard"]) # Adjust response_model later
+async def get_partner_resources(current_user: database_models.MongoOrganizationUser = Depends(get_current_partner_user)):
+    """
+    Placeholder for listing resources for the partner organization.
+    Requires authenticated partner user.
+    """
+    # TODO: Implement logic to fetch resources managed by or available to current_user.organization_id
+    return schemas.GenericResponse(
+        message=f"Resources for organization {current_user.organization_id}.",
+        details={"resources": []} # Placeholder
+    )
