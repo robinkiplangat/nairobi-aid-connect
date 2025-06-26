@@ -1,8 +1,8 @@
 import logging
 from typing import List, Optional
 
-from ..models import schemas
-from ..services.database import db_service # Assuming global instance
+from models import schemas
+from services.database import db_service # Assuming global instance
 
 logger = logging.getLogger(__name__)
 

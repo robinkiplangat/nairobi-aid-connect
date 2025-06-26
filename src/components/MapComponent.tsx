@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { HelpRequest } from '@/pages/Index';
+import { MapHotspotData } from '@/pages/Index'; // New type
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -12,7 +12,7 @@ L.Icon.Default.mergeOptions({
 });
 
 interface MapComponentProps {
-  helpRequests: HelpRequest[];
+  hotspots: MapHotspotData[]; // New prop
   onMapClick: (coordinates: [number, number]) => void;
   selectedLocation: [number, number] | null;
   isVolunteer: boolean;
@@ -22,7 +22,7 @@ interface MapComponentProps {
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
-  helpRequests,
+  hotspots, // New prop
   onMapClick,
   selectedLocation,
   isVolunteer,
@@ -37,38 +37,26 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   useEffect(() => {
     if (!mapContainer.current) return;
-
-    // Initialize map centered on Nairobi
     map.current = L.map(mapContainer.current).setView([-1.2921, 36.8219], 12);
-
-    // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map.current);
-
-    // Handle map clicks
     map.current.on('click', (e) => {
       const { lat, lng } = e.latlng;
       console.log('Map click event:', lat, lng);
       onMapClick([lat, lng]);
     });
-
     return () => {
       map.current?.remove();
     };
   }, [onMapClick]);
 
-  // Update selected location marker
   useEffect(() => {
     if (!map.current) return;
-
-    // Remove previous selected marker
     if (selectedMarkerRef.current) {
       map.current.removeLayer(selectedMarkerRef.current);
       selectedMarkerRef.current = null;
     }
-
-    // Add new selected marker
     if (selectedLocation) {
       selectedMarkerRef.current = L.marker(selectedLocation, {
         icon: L.divIcon({
@@ -81,22 +69,22 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     }
   }, [selectedLocation]);
 
-  // Update help request markers
+  // Update help request markers (now hotspots)
   useEffect(() => {
     if (!map.current) return;
 
-    // Remove old markers
     Object.values(markersRef.current).forEach(marker => {
       map.current?.removeLayer(marker);
     });
     markersRef.current = {};
 
-    // Add new markers for help requests
-    helpRequests.forEach(request => {
-      const color = request.type === 'Medical' ? 'red' : 
-                   request.type === 'Legal' ? 'blue' : 'green';
+    hotspots.forEach(hotspot => {
+      const color = hotspot.request_type === 'Medical' ? 'red' :
+                    hotspot.request_type === 'Legal' ? 'blue' : 'green';
       
-      const marker = L.marker(request.location, {
+      const markerLocation: [number, number] = [hotspot.coordinates.lat, hotspot.coordinates.lng];
+
+      const marker = L.marker(markerLocation, {
         icon: L.divIcon({
           className: 'help-request-marker',
           html: `<div class="w-6 h-6 bg-${color}-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
@@ -107,14 +95,13 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         })
       });
 
-      // Add popup for volunteers
       if (isVolunteer) {
         marker.bindPopup(`
           <div class="text-center">
-            <h3 class="font-semibold">${request.type} Help Needed</h3>
-            <p class="text-sm text-gray-600 mb-2">${new Date(request.timestamp).toLocaleTimeString()}</p>
+            <h3 class="font-semibold">${hotspot.request_type} Help Needed</h3>
+            <p class="text-sm text-gray-600 mb-2">${new Date(hotspot.timestamp).toLocaleTimeString()}</p>
             <button 
-              onclick="window.acceptRequest('${request.id}')" 
+              onclick="window.acceptRequest('${hotspot.id}')"
               class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
             >
               Accept Request
@@ -124,25 +111,23 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       } else {
         marker.bindPopup(`
           <div class="text-center">
-            <h3 class="font-semibold">${request.type} Help Request</h3>
-            <p class="text-sm text-gray-600">Help is on the way</p>
+            <h3 class="font-semibold">${hotspot.request_type} Help Request</h3>
+            <p class="text-sm text-gray-600">Location marked</p>
           </div>
         `);
       }
 
       marker.addTo(map.current!);
-      markersRef.current[request.id] = marker;
+      markersRef.current[hotspot.id] = marker;
     });
 
-    // Global function for popup button clicks
     (window as any).acceptRequest = onAcceptRequest;
 
-  }, [helpRequests, isVolunteer, onAcceptRequest]);
+  }, [hotspots, isVolunteer, onAcceptRequest]);
 
   useEffect(() => {
     if (map.current) {
       if (mapIsInteractive) {
-        // Enable all interactions
         map.current.keyboard?.enable();
         map.current.dragging?.enable();
         map.current.touchZoom?.enable();
@@ -150,7 +135,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         map.current.scrollWheelZoom?.enable();
         map.current.boxZoom?.enable();
       } else {
-        // Disable all interactions to prevent focus stealing
         map.current.keyboard?.disable();
         map.current.dragging?.disable();
         map.current.touchZoom?.disable();

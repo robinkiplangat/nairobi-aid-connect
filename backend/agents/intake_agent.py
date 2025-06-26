@@ -4,9 +4,9 @@ from datetime import datetime
 import logging
 from typing import Optional, Union
 
-from ..models import schemas
-from ..services.message_bus import message_bus_service # Assuming global instance
-from ..services.config import settings
+from models import schemas
+from services.message_bus import message_bus_service # Assuming global instance
+from services.config import settings
 # from ..services.nlp_service import nlp_service # Placeholder
 # from ..services.geocoding_service import geocoding_service # Placeholder
 import tweepy # Twitter API client
@@ -142,12 +142,18 @@ class IntakeAgent:
         # (Need to update schemas.DirectHelpRequestPayload)
 
         # For demonstration, if coordinates are directly provided in payload (e.g. from a map click)
-        # if hasattr(payload, 'coordinates') and payload.coordinates:
-        #     raw_coordinates = payload.coordinates
-        #     logger.info(f"Using coordinates directly from payload: {raw_coordinates}")
-        # else:
-        # Geocode Location (stubbed for direct request as well for consistency if no coords provided)
-        raw_coordinates = await self._stub_geocode_location(payload.location_text)
+        if payload.coordinates:
+            raw_coordinates = payload.coordinates
+            logger.info(f"Using coordinates directly from payload: {raw_coordinates}")
+        elif payload.location_text: # Fallback to geocoding if coordinates are not provided but text is
+            logger.info(f"No direct coordinates in payload, attempting to geocode location_text: '{payload.location_text}'")
+            raw_coordinates = await self._stub_geocode_location(payload.location_text)
+        else:
+            # This case should ideally be validated by Pydantic if at least one is required,
+            # or handled gracefully. For now, default to a generic Nairobi location if neither is present.
+            logger.warning("No coordinates or location_text provided in direct request. Defaulting location.")
+            raw_coordinates = await self._stub_geocode_location("Nairobi")
+
 
         request_type = payload.request_type
 
@@ -158,7 +164,7 @@ class IntakeAgent:
             # timestamp is auto-generated
             source="direct_app",
             request_type=request_type, # type: ignore (Pydantic will validate Literal)
-            location_text=payload.location_text,
+            location_text=payload.location_text or "Location from map pin", # Use provided text or a default
             coordinates=obfuscated_coordinates,
             original_content=payload.original_content,
             status="pending"

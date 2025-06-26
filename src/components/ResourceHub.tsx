@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Sheet,
@@ -84,7 +83,7 @@ export const ResourceHub: React.FC = () => {
                 {emergencyContacts.map((contact, index) => (
                   <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <span className="font-medium">{contact.name}</span>
-                    <a 
+                    <a
                       href={`tel:${contact.number}`}
                       className="text-blue-600 hover:text-blue-800 font-mono"
                     >
