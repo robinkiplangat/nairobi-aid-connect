@@ -313,4 +313,70 @@ security_service = SecurityService()
 
 def get_security_service() -> SecurityService:
     """Get the global security service instance."""
-    return security_service 
+    return security_service
+
+# --- Password Hashing ---
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain password against a hashed password."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Hashes a plain password."""
+    return pwd_context.hash(password)
+
+# --- JWT Token Handling ---
+from jose import JWTError, jwt
+from ..models import schemas as app_schemas # To avoid circular import with main's schemas
+
+# These should be in your .env file and loaded via settings
+# For demonstration, using settings directly. Ensure they are set in your config.
+JWT_SECRET_KEY = settings.JWT_SECRET_KEY # openssl rand -hex 32
+JWT_ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Creates a new JWT access token.
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+def verify_access_token(token: str, credentials_exception: Exception) -> Optional[app_schemas.TokenData]:
+    """
+    Verifies an access token.
+    Returns the token payload (TokenData) if valid, otherwise raises credentials_exception.
+    """
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username: Optional[str] = payload.get("sub") # 'sub' is standard for subject (username/email)
+        user_id: Optional[str] = payload.get("user_id")
+        organization_id: Optional[str] = payload.get("organization_id")
+        role: Optional[str] = payload.get("role")
+
+        if username is None and user_id is None : # At least one identifier must be present
+            logger.warning(f"Token verification failed: username/user_id missing. Payload: {payload}")
+            raise credentials_exception
+
+        token_data = app_schemas.TokenData(
+            username=username,
+            user_id=user_id,
+            organization_id=organization_id,
+            role=role
+        )
+        return token_data
+    except JWTError as e:
+        logger.error(f"JWTError during token verification: {e}", exc_info=True)
+        raise credentials_exception
+    except Exception as e:
+        logger.error(f"Unexpected error during token verification: {e}", exc_info=True)
+        raise credentials_exception

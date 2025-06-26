@@ -193,6 +193,114 @@ class GenericResponse(BaseModel):
     success: bool = True
     details: Optional[dict] = None
 
+
+# --- Organization Schemas ---
+
+class OrganizationBase(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    organization_type: Literal["NGO", "Government", "MedicalFacility", "CommunityGroup", "Other"] = Field(..., alias="type")
+    contact_email: Optional[str] = Field(None, pattern=r"[^@]+@[^@]+\.[^@]+")
+    contact_phone: Optional[str] = None
+    capabilities: Optional[list[str]] = None # e.g., ["medical_staff", "transport", "shelter_space"]
+
+    @validator('name', 'contact_email', 'contact_phone')
+    def sanitize_string_fields(cls, v):
+        if v is None:
+            return v
+        v = re.sub(r'<[^>]*>', '', v) # Basic tag stripping
+        return v.strip()
+
+class OrganizationCreate(OrganizationBase):
+    pass
+
+class Organization(OrganizationBase):
+    organization_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_verified: bool = False # Admin can verify organizations
+
+    class Config:
+        populate_by_name = True # Allows using 'id' and 'type' in code while db stores 'organization_id', 'organization_type'
+
+
+class OrganizationUserRole(BaseModel):
+    role: Literal["admin", "coordinator", "field_staff"] = "field_staff"
+    # Potentially add specific permissions here later
+
+class OrganizationUserBase(BaseModel):
+    email: str = Field(..., pattern=r"[^@]+@[^@]+\.[^@]+")
+    full_name: str = Field(..., min_length=2, max_length=100)
+
+    @validator('email', 'full_name')
+    def sanitize_user_fields(cls, v):
+        v = re.sub(r'<[^>]*>', '', v)
+        return v.strip()
+
+class OrganizationUserCreate(OrganizationUserBase):
+    password: str = Field(..., min_length=8)
+    organization_id: Optional[str] = None # If creating user for an existing org
+    # If creating a new org, this can be set after org is created.
+    # For initial registration, org_id might be missing if it's a new org registration.
+    # Role could be passed here, or set to 'admin' by default for the first user of an org.
+    role: Literal["admin", "coordinator", "field_staff"] = "admin"
+
+
+class OrganizationUser(OrganizationUserBase):
+    user_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="id")
+    organization_id: str
+    hashed_password: str # Password will be stored hashed
+    role: Literal["admin", "coordinator", "field_staff"] = "admin"
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+
+
+class OrganizationApiKeyBase(BaseModel):
+    organization_id: str
+    key_name: str = Field(..., min_length=3, max_length=50) # e.g., "ReportingIntegrationKey"
+    permissions: Optional[list[str]] = None # e.g., ["read_cases", "create_resource_update"]
+
+class OrganizationApiKeyCreate(OrganizationApiKeyBase):
+    pass
+
+class OrganizationApiKey(OrganizationApiKeyBase):
+    api_key_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="id")
+    api_key: str # This will be the actual key, generated on creation
+    hashed_key: str # Store a hash of the key for verification, not the key itself
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_used_at: Optional[datetime] = None
+    is_active: bool = True
+
+    class Config:
+        populate_by_name = True
+
+# --- API Payloads for Organization Auth ---
+
+class PartnerLoginPayload(BaseModel):
+    email: str
+    password: str
+
+class PartnerRegisterPayload(BaseModel):
+    organization_name: str = Field(..., min_length=2, max_length=100)
+    organization_type: Literal["NGO", "Government", "MedicalFacility", "CommunityGroup", "Other"]
+    admin_email: str = Field(..., pattern=r"[^@]+@[^@]+\.[^@]+")
+    admin_full_name: str = Field(..., min_length=2, max_length=100)
+    admin_password: str = Field(..., min_length=8)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None # Could be email for organization users
+    user_id: Optional[str] = None
+    organization_id: Optional[str] = None
+    role: Optional[str] = None
+
+
 # MongoDB specific models (can inherit from above or be separate)
 # For now, the above models can serve as the structure for MongoDB documents as well.
 # If specific MongoDB features like ObjectId are needed, we can adjust.
