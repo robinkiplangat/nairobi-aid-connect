@@ -86,7 +86,7 @@ const Index = () => {
 
   useEffect(() => {
     const fetchZoneData = () => {
-      fetch(apiUrl('api/v1/map/zones'))
+      fetch(apiUrl('/api/v1/map/zones'))
         .then(response => {
           if (!response.ok) {
             throw new Error('Network response was not ok');
