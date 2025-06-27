@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,16 +22,16 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-card shadow-sm border-b dark:border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link to="/partner" className="text-blue-600 hover:text-blue-500">
+              <Link to="/partner/dashboard" className="text-blue-600 dark:text-primary hover:text-blue-500 dark:hover:text-primary/90">
                 ← Dashboard
               </Link>
-              <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Settings</h1>
             </div>
           </div>
         </div>
@@ -41,7 +40,7 @@ const Settings = () => {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-card">
             <TabsTrigger value="profile">
               <User className="h-4 w-4 mr-2" />
               Profile
@@ -61,7 +60,7 @@ const Settings = () => {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6">
-            <Card>
+            <Card className="dark:bg-card">
               <CardHeader>
                 <CardTitle>Organization Profile</CardTitle>
                 <CardDescription>
@@ -111,7 +110,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="security" className="space-y-6">
-            <Card>
+            <Card className="dark:bg-card">
               <CardHeader>
                 <CardTitle>Security Settings</CardTitle>
                 <CardDescription>
@@ -142,7 +141,7 @@ const Settings = () => {
                     <h4 className="font-medium mb-2">Two-Factor Authentication</h4>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">
                           Add an extra layer of security to your account
                         </p>
                         <Badge variant="outline" className="mt-1">Not Configured</Badge>
@@ -156,10 +155,10 @@ const Settings = () => {
                   <div>
                     <h4 className="font-medium mb-2">Session Management</h4>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 border rounded">
+                      <div className="flex items-center justify-between p-3 border dark:border-border rounded">
                         <div>
                           <p className="text-sm font-medium">Current Session</p>
-                          <p className="text-xs text-gray-500">Chrome on Windows • Last active: Now</p>
+                          <p className="text-xs text-gray-500 dark:text-muted-foreground">Chrome on Windows • Last active: Now</p>
                         </div>
                         <Badge variant="default">Active</Badge>
                       </div>
@@ -184,7 +183,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6">
-            <Card>
+            <Card className="dark:bg-card">
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
                 <CardDescription>
@@ -196,7 +195,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium">Emergency Alerts</h4>
-                      <p className="text-sm text-gray-600">High-priority emergency notifications</p>
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">High-priority emergency notifications</p>
                     </div>
                     <Badge variant="default">Enabled</Badge>
                   </div>
@@ -204,7 +203,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium">Case Updates</h4>
-                      <p className="text-sm text-gray-600">Updates on case status changes</p>
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">Updates on case status changes</p>
                     </div>
                     <Badge variant="default">Enabled</Badge>
                   </div>
@@ -212,7 +211,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium">Volunteer Activity</h4>
-                      <p className="text-sm text-gray-600">Notifications about volunteer assignments</p>
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">Notifications about volunteer assignments</p>
                     </div>
                     <Badge variant="secondary">Disabled</Badge>
                   </div>
@@ -220,7 +219,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium">System Updates</h4>
-                      <p className="text-sm text-gray-600">Platform maintenance and feature updates</p>
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">Platform maintenance and feature updates</p>
                     </div>
                     <Badge variant="default">Enabled</Badge>
                   </div>
@@ -260,7 +259,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="api" className="space-y-6">
-            <Card>
+            <Card className="dark:bg-card">
               <CardHeader>
                 <CardTitle>API Keys</CardTitle>
                 <CardDescription>
@@ -269,11 +268,11 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded">
+                  <div className="flex items-center justify-between p-4 border dark:border-border rounded">
                     <div>
                       <h4 className="font-medium">Production API Key</h4>
-                      <p className="text-sm text-gray-600">Last used: 2 hours ago</p>
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded mt-1 inline-block">
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">Last used: 2 hours ago</p>
+                      <code className="text-xs bg-gray-100 dark:bg-background px-2 py-1 rounded mt-1 inline-block">
                         sk_prod_***************************xyz
                       </code>
                     </div>
@@ -283,11 +282,11 @@ const Settings = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border rounded">
+                  <div className="flex items-center justify-between p-4 border dark:border-border rounded">
                     <div>
                       <h4 className="font-medium">Development API Key</h4>
-                      <p className="text-sm text-gray-600">Last used: Never</p>
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded mt-1 inline-block">
+                      <p className="text-sm text-gray-600 dark:text-muted-foreground">Last used: Never</p>
+                      <code className="text-xs bg-gray-100 dark:bg-background px-2 py-1 rounded mt-1 inline-block">
                         sk_dev_***************************abc
                       </code>
                     </div>
@@ -303,9 +302,9 @@ const Settings = () => {
                   Generate New API Key
                 </Button>
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">API Usage Guidelines</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">API Usage Guidelines</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
                     <li>• Keep your API keys secure and never share them publicly</li>
                     <li>• Use different keys for development and production environments</li>
                     <li>• Regenerate keys regularly for security</li>
