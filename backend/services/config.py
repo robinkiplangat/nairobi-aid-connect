@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     CHAT_SESSION_TTL_HOURS: int = 24
     VOLUNTEER_SESSION_TIMEOUT_HOURS: int = 4 # For volunteer HTTP session tokens
 
+    # CORS Configuration
+    CORS_ALLOWED_ORIGINS: Optional[str] = None  # Comma-separated list of allowed origins
+    
     # General App Settings
     APP_ENV: str = "development" # "development", "staging", "production"
     DEBUG_MODE: bool = True
@@ -109,3 +112,4 @@ if __name__ == "__main__":
     # APP_ENV=production
     # ENCRYPTION_KEY=your-secure-encryption-key
     # SENTRY_DSN=your-sentry-dsn
+    # CORS_ALLOWED_ORIGINS="https://yourdomain.com,https://your-branch-deployment.vercel.app"

@@ -98,6 +98,40 @@ class DatabaseService:
         result = await db[collection_name].delete_one(query)
         return result.deleted_count > 0
 
+    # --- Additional methods needed by organization_service.py ---
+    
+    async def add_document(self, collection_name: str, document_data: dict) -> Optional[str]:
+        """Adds a document and returns the document ID if successful."""
+        try:
+            doc_id = await self.insert_document(collection_name, document_data)
+            return doc_id
+        except Exception as e:
+            logger.error(f"Error adding document to {collection_name}: {e}")
+            return None
+
+    async def get_document_by_field(self, collection_name: str, field_name: str, field_value: Any) -> Optional[dict]:
+        """Finds a document by a specific field value."""
+        db = await self.get_db()
+        try:
+            return await db[collection_name].find_one({field_name: field_value})
+        except Exception as e:
+            logger.error(f"Error getting document from {collection_name} by {field_name}: {e}")
+            return None
+
+    async def get_documents_by_field(self, collection_name: str, field_name: str, field_value: Any) -> List[dict]:
+        """Finds multiple documents by a specific field value."""
+        db = await self.get_db()
+        try:
+            cursor = db[collection_name].find({field_name: field_value})
+            return await cursor.to_list(length=None)
+        except Exception as e:
+            logger.error(f"Error getting documents from {collection_name} by {field_name}: {e}")
+            return []
+
+    async def update_document(self, collection_name: str, document_id: str, update_data: dict) -> bool:
+        """Updates a document by its ID. Returns True if update was successful."""
+        return await self.update_document_by_id(collection_name, document_id, update_data)
+
     # --- Application Specific Database Operations (Examples - to be expanded by agents) ---
 
     async def get_volunteer_by_verification_code(self, code: str) -> Optional[schemas.Volunteer]:

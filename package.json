@@ -61,6 +61,7 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",
+    "vis-graph3d": "^6.0.8",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -75,7 +76,7 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
-    "lovable-tagger": "^1.1.7",
+    "lovable-tagger": "^1.1.8",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
     "terser": "^5.43.1",

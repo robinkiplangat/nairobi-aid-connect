@@ -327,3 +327,13 @@ class TokenData(BaseModel):
 #         json_encoders = { ObjectId: str }
 #         arbitrary_types_allowed = True # Allow PyObjectId
 #         populate_by_name = True # To allow using '_id' as 'id'
+
+class ZoneStatus(BaseModel):
+    name: str
+    lat: float
+    lng: float
+    status: str
+    intensity: float
+
+class VolunteerVerificationRequest(BaseModel):
+    verification_code: str

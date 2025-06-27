@@ -64,7 +64,7 @@ export const HelpRequestModal: React.FC<HelpRequestModalProps> = ({
       (position) => {
         const { latitude, longitude } = position.coords;
         onDeviceLocationSet([latitude, longitude]);
-        toast({ title: "Location Found!", description: "Your current location has been set.", variant: "success" });
+        toast({ title: "Location Found!", description: "Your current location has been set." });
       },
       (error) => {
         console.error("Geolocation error:", error);
