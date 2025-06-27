@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status
+from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -350,19 +350,28 @@ async def get_resource_hub_content():
     try: return await content_agent.fetch_resources()
     except Exception as e: logger.error(f"Error in /resources: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/map/hotspots", response_model=List[schemas.MapHotspot], tags=["Map Data"])
+map_router = APIRouter(prefix="/api/v1/map", tags=["Map Data"])
+
+@map_router.get("/hotspots", response_model=List[schemas.MapHotspot])
 async def get_map_hotspots(limit: int = 200):
+    """
+    Returns a list of all current help request hotspots on the map.
+    """
     try: return await content_agent.fetch_active_hotspots(limit=limit)
     except Exception as e: logger.error(f"Error in /hotspots: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
 
-# A new endpoint to provide zone status data for the heatmap
-@app.get("/api/v1/map/zones", response_model=List[schemas.ZoneStatus])
+@map_router.get("/zones", response_model=List[schemas.ZoneStatus])
 def get_map_zones():
+    """
+    Returns all zone status data for the heatmap overlay.
+    """
     db = get_db()
     zones = list(db.zones.find({}, {"_id": 0}))  # Exclude MongoDB _id
     if not zones:
         raise HTTPException(status_code=404, detail="No zones found")
     return zones
+
+app.include_router(map_router)
 
 # --- WebSocket Chat Endpoint ---
 from fastapi import WebSocket, WebSocketDisconnect
