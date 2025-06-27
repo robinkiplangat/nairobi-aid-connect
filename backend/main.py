@@ -27,14 +27,14 @@ from agents.verification_agent import verification_agent
 from agents.dispatcher_agent import dispatcher_agent
 from agents.comms_agent import comms_agent, CommsAgent # CommsAgent class for static methods
 from agents.content_agent import content_agent
-from services.organization_service import organization_service
+from services.organization_service import organization_service, get_db
 from services.security import create_access_token, verify_access_token
 from models import database_models # For type hinting current_user
 
 app = FastAPI(
     title="SOS Nairobi Backend",
     description="Multi-agent system for coordinating emergency aid.",
-    version="0.1.0"
+    version="0.1.1"
 )
 
 # Security Middleware Configuration
@@ -58,7 +58,10 @@ def get_cors_origins():
     # Default origins for local development
     default_origins = [
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8080",
+        "http://localhost:8001",
     ]
     
     # Get origins from environment variable
@@ -355,26 +358,11 @@ async def get_map_hotspots(limit: int = 200):
 # A new endpoint to provide zone status data for the heatmap
 @app.get("/api/v1/map/zones", response_model=List[schemas.ZoneStatus])
 def get_map_zones():
-    """
-    Provides a list of predefined zone statuses for the heatmap overlay.
-    
-    In a real-world scenario, this data would be dynamically generated
-    based on real-time data analysis, incident reports, and other factors.
-    For now, it returns a static, mock dataset.
-    """
-    mock_zones = [
-        {"name": "CBD", "lat": -1.2921, "lng": 36.8219, "status": "danger", "intensity": 0.8},
-        {"name": "Westlands", "lat": -1.2676, "lng": 36.8062, "status": "moderate", "intensity": 0.6},
-        {"name": "Kibera", "lat": -1.3133, "lng": 36.7892, "status": "calm", "intensity": 0.3},
-        {"name": "Parklands", "lat": -1.2632, "lng": 36.8103, "status": "moderate", "intensity": 0.5},
-        {"name": "Industrial Area", "lat": -1.3031, "lng": 36.8073, "status": "danger", "intensity": 0.9},
-        {"name": "Gigiri", "lat": -1.2507, "lng": 36.8673, "status": "calm", "intensity": 0.2},
-        {"name": "Karen", "lat": -1.2741, "lng": 36.7540, "status": "moderate", "intensity": 0.4},
-        {"name": "Muthaiga", "lat": -1.2195, "lng": 36.8965, "status": "calm", "intensity": 0.1},
-        {"name": "South B", "lat": -1.3152, "lng": 36.8302, "status": "danger", "intensity": 0.7},
-        {"name": "Hurlingham", "lat": -1.2841, "lng": 36.8155, "status": "moderate", "intensity": 0.5},
-    ]
-    return mock_zones
+    db = get_db()
+    zones = list(db.zones.find({}, {"_id": 0}))  # Exclude MongoDB _id
+    if not zones:
+        raise HTTPException(status_code=404, detail="No zones found")
+    return zones
 
 # --- WebSocket Chat Endpoint ---
 from fastapi import WebSocket, WebSocketDisconnect

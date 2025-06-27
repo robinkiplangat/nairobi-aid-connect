@@ -2,11 +2,16 @@
 from typing import Optional, Tuple
 import uuid
 import hashlib # For API key hashing (not passwords)
+from pymongo import MongoClient
 
 from models import schemas, database_models
 from services.database import db_service
 # Placeholder for password hashing utilities, will be added to security.py
 from services.security import get_password_hash, verify_password
+
+def get_db():
+    client = MongoClient("mongodb://localhost:27017/")
+    return client["nairobi_aid_connect"]
 
 class OrganizationService:
     async def create_organization(self, org_create_data: schemas.OrganizationCreate) -> Optional[database_models.MongoOrganization]:
