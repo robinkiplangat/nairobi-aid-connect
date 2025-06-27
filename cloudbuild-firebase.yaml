@@ -1,0 +1,57 @@
+steps:
+  # Build the frontend
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['ci']
+    dir: '.'
+  
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['run', 'build']
+    dir: '.'
+    env:
+      - 'VITE_API_BASE_URL=https://sos-ke-triage-${_REGION}-${PROJECT_ID}.a.run.app'
+      - 'VITE_APP_ENV=production'
+  
+  # Deploy frontend to Firebase Hosting
+  - name: 'gcr.io/cloud-builders/firebase'
+    args: ['deploy', '--only', 'hosting', '--project', 'sos-nairobi-connect']
+    dir: '.'
+  
+  # Build the backend container
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/sos-ke-triage-backend', './backend']
+  
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/sos-ke-triage-backend']
+  
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+    - 'run'
+    - 'deploy'
+    - 'sos-ke-triage-backend'
+    - '--image'
+    - 'gcr.io/$PROJECT_ID/sos-ke-triage-backend'
+    - '--region'
+    - '${_REGION}'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    - '--memory'
+    - '2Gi'
+    - '--cpu'
+    - '2'
+    - '--max-instances'
+    - '5'
+    - '--set-env-vars'
+    - 'ENVIRONMENT=production'
+    - '--port'
+    - '8000'
+
+images:
+  - 'gcr.io/$PROJECT_ID/sos-ke-triage-backend'
+
+substitutions:
+  _REGION: 'europe-west1' 

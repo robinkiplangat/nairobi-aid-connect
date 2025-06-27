@@ -1,0 +1,37 @@
+steps:
+  # Build the backend container
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/sos-ke-triage/sos-ke-triage-backend', './backend']
+  
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/sos-ke-triage/sos-ke-triage-backend']
+  
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+    - 'run'
+    - 'deploy'
+    - 'sos-ke-triage-backend'
+    - '--image'
+    - 'europe-west1-docker.pkg.dev/$PROJECT_ID/sos-ke-triage/sos-ke-triage-backend'
+    - '--region'
+    - 'europe-west1'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    - '--memory'
+    - '2Gi'
+    - '--cpu'
+    - '2'
+    - '--max-instances'
+    - '5'
+    - '--min-instances'
+    - '0'
+    - '--port'
+    - '8000'
+    - '--set-env-vars'
+    - 'APP_ENV=production'
+
+images:
+  - 'europe-west1-docker.pkg.dev/$PROJECT_ID/sos-ke-triage/sos-ke-triage-backend' 

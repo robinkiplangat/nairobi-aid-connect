@@ -7,8 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:firebase": "vite build --mode production",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:firebase": "npm run build:firebase && firebase deploy --only hosting",
+    "deploy:firebase:preview": "npm run build:firebase && firebase hosting:channel:deploy preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
