@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# Nairobi Aid Connect - Deployment Script
-# This script sets up and runs the entire application
+# Nairobi Aid Connect Deployment Script
+# This script deploys both frontend and backend with the new domain configuration
 
 set -e  # Exit on any error
+
+echo "🚀 Starting Nairobi Aid Connect Deployment..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,276 +14,165 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+# Configuration
+FRONTEND_DOMAIN="sos-nairobi.space"
+BACKEND_DOMAIN="api.sos-nairobi.space"
+FRONTEND_URL="https://${FRONTEND_DOMAIN}"
+BACKEND_URL="https://${BACKEND_DOMAIN}"
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+echo -e "${BLUE}📋 Deployment Configuration:${NC}"
+echo -e "  Frontend: ${GREEN}${FRONTEND_URL}${NC}"
+echo -e "  Backend:  ${GREEN}${BACKEND_URL}${NC}"
 
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check system requirements
-check_requirements() {
-    print_status "Checking system requirements..."
+# Function to check deployment status
+check_deployment() {
+    local url=$1
+    local name=$2
     
-    # Check Python
-    if ! command_exists python3; then
-        print_error "Python 3 is required but not installed."
-        exit 1
-    fi
+    echo -e "${YELLOW}🔍 Checking ${name} deployment...${NC}"
     
-    # Check Node.js
-    if ! command_exists node; then
-        print_error "Node.js is required but not installed."
-        print_warning "Please install Node.js from https://nodejs.org/"
-        exit 1
-    fi
-    
-    # Check npm
-    if ! command_exists npm; then
-        print_error "npm is required but not installed."
-        exit 1
-    fi
-    
-    # Check if we're in the right directory
-    if [ ! -f "package.json" ] || [ ! -d "backend" ]; then
-        print_error "Please run this script from the project root directory."
-        exit 1
-    fi
-    
-    print_success "System requirements check passed"
-}
-
-# Function to setup backend
-setup_backend() {
-    print_status "Setting up backend..."
-    
-    cd backend
-    
-    # Create virtual environment if it doesn't exist
-    if [ ! -d "venv" ]; then
-        print_status "Creating Python virtual environment..."
-        python3 -m venv venv
-    fi
-    
-    # Activate virtual environment
-    print_status "Activating virtual environment..."
-    source venv/bin/activate
-    
-    # Upgrade pip
-    print_status "Upgrading pip..."
-    pip install --upgrade pip
-    
-    # Install requirements
-    print_status "Installing Python dependencies..."
-    pip install -r requirements.txt
-    
-    # Create .env file if it doesn't exist
-    if [ ! -f ".env" ]; then
-        print_status "Creating .env file with default settings..."
-        cat > .env << EOF
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/
-MONGODB_DATABASE_NAME=sos_nairobi_db
-
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=
-
-# API Keys (replace with actual values)
-TWITTER_BEARER_TOKEN=YOUR_TWITTER_BEARER_TOKEN_HERE
-GOOGLE_API_KEY=
-
-# App Settings
-APP_ENV=development
-DEBUG_MODE=true
-ENABLE_TWITTER_MONITORING=false
-EOF
-        print_warning "Created default .env file. Please update with your actual API keys."
-    fi
-    
-    cd ..
-    print_success "Backend setup completed"
-}
-
-# Function to setup frontend
-setup_frontend() {
-    print_status "Setting up frontend..."
-    
-    # Install npm dependencies
-    print_status "Installing npm dependencies..."
-    npm install
-    
-    print_success "Frontend setup completed"
-}
-
-# Function to check if services are running
-check_services() {
-    print_status "Checking required services..."
-    
-    # Check MongoDB
-    if ! command_exists mongod; then
-        print_warning "MongoDB is not installed or not in PATH."
-        print_warning "Please install MongoDB: https://docs.mongodb.com/manual/installation/"
+    if curl -s -f "$url" > /dev/null; then
+        echo -e "${GREEN}✅ ${name} is accessible at ${url}${NC}"
+        return 0
     else
-        if pgrep -x "mongod" > /dev/null; then
-            print_success "MongoDB is running"
-        else
-            print_warning "MongoDB is not running. Please start it manually."
-        fi
+        echo -e "${RED}❌ ${name} is not accessible at ${url}${NC}"
+        return 1
     fi
+}
+
+# Function to test API endpoints
+test_api_endpoints() {
+    echo -e "${YELLOW}🧪 Testing API endpoints...${NC}"
     
-    # Check Redis
-    if ! command_exists redis-server; then
-        print_warning "Redis is not installed or not in PATH."
-        print_warning "Please install Redis: https://redis.io/download"
+    # Test health endpoint
+    if curl -s -f "${BACKEND_URL}/" > /dev/null; then
+        echo -e "${GREEN}✅ Health endpoint working${NC}"
     else
-        if pgrep -x "redis-server" > /dev/null; then
-            print_success "Redis is running"
-        else
-            print_warning "Redis is not running. Please start it manually."
-        fi
+        echo -e "${RED}❌ Health endpoint failed${NC}"
+    fi
+    
+    # Test CORS
+    if curl -s -f -H "Origin: ${FRONTEND_URL}" \
+        -H "Access-Control-Request-Method: POST" \
+        -H "Access-Control-Request-Headers: Content-Type" \
+        -X OPTIONS "${BACKEND_URL}/api/v1/request/direct" > /dev/null; then
+        echo -e "${GREEN}✅ CORS configuration working${NC}"
+    else
+        echo -e "${RED}❌ CORS configuration failed${NC}"
+    fi
+    
+    # Test API documentation
+    if curl -s -f "${BACKEND_URL}/docs" > /dev/null; then
+        echo -e "${GREEN}✅ API documentation accessible${NC}"
+    else
+        echo -e "${RED}❌ API documentation not accessible${NC}"
     fi
 }
 
-# Function to start services
-start_services() {
-    print_status "Starting services..."
-    
-    # Start MongoDB if not running
-    if command_exists mongod && ! pgrep -x "mongod" > /dev/null; then
-        print_status "Starting MongoDB..."
-        mongod --fork --logpath /tmp/mongod.log --dbpath /tmp/mongodb
-        sleep 2
-    fi
-    
-    # Start Redis if not running
-    if command_exists redis-server && ! pgrep -x "redis-server" > /dev/null; then
-        print_status "Starting Redis..."
-        redis-server --daemonize yes
-        sleep 1
-    fi
-}
+# Check prerequisites
+echo -e "${BLUE}🔧 Checking prerequisites...${NC}"
 
-# Function to run the application
-run_app() {
-    print_status "Starting Nairobi Aid Connect application..."
-    
-    # Start backend in background
-    print_status "Starting backend server..."
-    cd backend
-    source venv/bin/activate
-    PYTHONPATH=.. uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
-    BACKEND_PID=$!
-    cd ..
-    
-    # Wait a moment for backend to start
-    sleep 3
-    
-    # Start frontend in background
-    print_status "Starting frontend development server..."
-    npm run dev &
-    FRONTEND_PID=$!
-    
-    # Wait a moment for frontend to start
-    sleep 3
-    
-    print_success "Application started successfully!"
-    echo ""
-    echo "🌐 Frontend: http://localhost:5173"
-    echo "🔧 Backend API: http://localhost:8000"
-    echo "📚 API Documentation: http://localhost:8000/docs"
-    echo ""
-    echo "Press Ctrl+C to stop the application"
-    echo ""
-    
-    # Function to cleanup on exit
-    cleanup() {
-        print_status "Shutting down application..."
-        kill $BACKEND_PID 2>/dev/null || true
-        kill $FRONTEND_PID 2>/dev/null || true
-        print_success "Application stopped"
+if ! command_exists curl; then
+    echo -e "${RED}❌ curl is required but not installed${NC}"
+    exit 1
+fi
+
+if ! command_exists git; then
+    echo -e "${RED}❌ git is required but not installed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Prerequisites check passed${NC}"
+
+# Check current git status
+echo -e "${BLUE}📊 Checking git status...${NC}"
+if [ -n "$(git status --porcelain)" ]; then
+    echo -e "${YELLOW}⚠️  You have uncommitted changes. Consider committing them before deployment.${NC}"
+    read -p "Continue with deployment? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Deployment cancelled.${NC}"
         exit 0
-    }
-    
-    # Set up signal handlers
-    trap cleanup SIGINT SIGTERM
-    
-    # Wait for background processes
-    wait
-}
+    fi
+fi
 
-# Function to show help
-show_help() {
-    echo "Nairobi Aid Connect - Deployment Script"
-    echo ""
-    echo "Usage: $0 [OPTION]"
-    echo ""
-    echo "Options:"
-    echo "  setup     - Setup the application (install dependencies, create config)"
-    echo "  start     - Start the application (backend + frontend)"
-    echo "  run       - Setup and start the application (default)"
-    echo "  check     - Check system requirements and services"
-    echo "  help      - Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  $0 setup    # Only setup dependencies"
-    echo "  $0 start    # Only start the application"
-    echo "  $0          # Setup and start (default)"
-}
+# Frontend deployment instructions
+echo -e "${BLUE}🌐 Frontend Deployment (Vercel)${NC}"
+echo -e "${YELLOW}Please ensure the following environment variables are set in your Vercel dashboard:${NC}"
+echo -e "  VITE_API_BASE_URL=${BACKEND_URL}"
+echo -e "  VITE_APP_ENV=production"
+echo -e "  VITE_ENABLE_HTTPS_ONLY=true"
+echo -e "  VITE_ENABLE_CONTENT_SECURITY_POLICY=true"
 
-# Main script logic
-main() {
-    case "${1:-run}" in
-        "setup")
-            check_requirements
-            setup_backend
-            setup_frontend
-            print_success "Setup completed successfully!"
-            ;;
-        "start")
-            check_services
-            start_services
-            run_app
-            ;;
-        "run")
-            check_requirements
-            setup_backend
-            setup_frontend
-            check_services
-            start_services
-            run_app
-            ;;
-        "check")
-            check_requirements
-            check_services
-            ;;
-        "help"|"-h"|"--help")
-            show_help
-            ;;
-        *)
-            print_error "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
-}
+# Backend deployment instructions
+echo -e "${BLUE}🔧 Backend Deployment (Render/Cloud Run)${NC}"
+echo -e "${YELLOW}Please ensure the following environment variables are set:${NC}"
+echo -e "  APP_ENV=production"
+echo -e "  DEBUG_MODE=false"
+echo -e "  CORS_ALLOWED_ORIGINS=${FRONTEND_URL},https://www.${FRONTEND_DOMAIN}"
+echo -e "  REQUIRE_HTTPS=true"
+echo -e "  ENABLE_RATE_LIMITING=true"
 
-# Run main function with all arguments
-main "$@" 
+# Wait for user confirmation
+echo
+read -p "Have you configured the environment variables and deployed both services? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Please configure the environment variables and deploy the services first.${NC}"
+    exit 0
+fi
+
+# Test deployments
+echo -e "${BLUE}🧪 Testing deployments...${NC}"
+
+# Test frontend
+if check_deployment "$FRONTEND_URL" "Frontend"; then
+    echo -e "${GREEN}✅ Frontend deployment successful${NC}"
+else
+    echo -e "${RED}❌ Frontend deployment failed or not accessible${NC}"
+    echo -e "${YELLOW}Please check your Vercel deployment and domain configuration.${NC}"
+fi
+
+# Test backend
+if check_deployment "$BACKEND_URL" "Backend"; then
+    echo -e "${GREEN}✅ Backend deployment successful${NC}"
+    test_api_endpoints
+else
+    echo -e "${RED}❌ Backend deployment failed or not accessible${NC}"
+    echo -e "${YELLOW}Please check your backend deployment and domain configuration.${NC}"
+fi
+
+# Final verification
+echo -e "${BLUE}🎯 Final verification...${NC}"
+
+# Test frontend to backend communication
+echo -e "${YELLOW}Testing frontend to backend communication...${NC}"
+if curl -s -f -H "Origin: ${FRONTEND_URL}" \
+    -H "Access-Control-Request-Method: GET" \
+    -X OPTIONS "${BACKEND_URL}/" > /dev/null; then
+    echo -e "${GREEN}✅ Frontend can communicate with backend${NC}"
+else
+    echo -e "${RED}❌ Frontend cannot communicate with backend${NC}"
+    echo -e "${YELLOW}Check CORS configuration in backend environment variables.${NC}"
+fi
+
+echo
+echo -e "${GREEN}🎉 Deployment verification complete!${NC}"
+echo
+echo -e "${BLUE}📋 Next steps:${NC}"
+echo -e "  1. Test the application manually at ${FRONTEND_URL}"
+echo -e "  2. Verify all features are working correctly"
+echo -e "  3. Monitor logs for any errors"
+echo -e "  4. Set up monitoring and alerting if needed"
+echo
+echo -e "${BLUE}🔗 Useful URLs:${NC}"
+echo -e "  Frontend: ${FRONTEND_URL}"
+echo -e "  Backend API: ${BACKEND_URL}"
+echo -e "  API Documentation: ${BACKEND_URL}/docs"
+echo
+echo -e "${GREEN}✅ Deployment script completed successfully!${NC}" 

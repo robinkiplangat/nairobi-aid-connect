@@ -1,56 +1,113 @@
-# FastAPI & Uvicorn
-fastapi
-uvicorn[standard]
+# Core FastAPI dependencies
+fastapi==0.115.13
+uvicorn[standard]==0.34.3
+python-multipart==0.0.20  # CRITICAL for OAuth2PasswordRequestForm
 
-# Pydantic for data validation and settings management
-pydantic
-pydantic-settings
+# Data validation and settings
+pydantic==2.11.7
+pydantic-settings==2.10.1
 
-# MongoDB driver
-pymongo
-motor
+# Database drivers
+pymongo==4.13.2
+motor==3.7.1
+redis==6.2.0
 
-# Redis driver (for message bus)
-redis
+# HTTP and networking
+httpx==0.28.1
+websockets==15.0.1
 
-# Google Agent Development Kit (ADK) - Placeholder, will need to find the actual package name if available
-# google-adk
+# Security and authentication
+cryptography==45.0.4
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
+slowapi==0.1.9
 
-# HTTP client for making requests to external APIs
-httpx
+# Environment and configuration
+python-dotenv==1.1.1
 
-# Python-dotenv for environment variable management
-python-dotenv
+# External API integrations
+tweepy==4.16.0
 
-# For Twitter API (if direct integration is chosen over ADK's potential built-in)
-tweepy
+# Google Cloud services
+google-cloud-aiplatform==1.99.0
+google-cloud-secret-manager==2.24.0
+google-cloud-logging==3.12.1
+google-cloud-monitoring==2.27.2
 
-# For NLP (e.g., Google Cloud Natural Language)
-# google-cloud-language
+# Monitoring and error tracking
+sentry-sdk[fastapi]==2.31.0
 
-# For Geocoding (e.g., Google Maps Geocoding)
-# googlemaps
-
-# Websockets with FastAPI
-websockets
-
-# Security & Monitoring
-slowapi  # Rate limiting
-sentry-sdk[fastapi]  # Error tracking
-cryptography  # Data encryption
-passlib[bcrypt] # For password hashing
-python-jose[cryptography] # For JWT handling
+# Production server
+gunicorn==23.0.0
 
 # Testing
-pytest
-pytest-asyncio # For testing async code
-requests # For testing API endpoints (alternative to httpx for sync tests)
+pytest==8.4.1
+pytest-asyncio==1.0.0
+requests==2.32.4
 
-# Google Cloud libraries
-google-cloud-aiplatform
-google-cloud-secret-manager
-google-cloud-logging
-google-cloud-monitoring
-
-# Production dependencies
-gunicorn
+# Additional dependencies for compatibility
+annotated-types==0.7.0
+anyio==4.9.0
+async-timeout==5.0.1
+bcrypt==4.3.0
+cachetools==5.5.2
+certifi==2025.6.15
+cffi==1.17.1
+charset-normalizer==3.4.2
+click==8.1.8
+Deprecated==1.2.18
+dnspython==2.7.0
+docstring_parser==0.16
+ecdsa==0.19.1
+exceptiongroup==1.3.0
+google-api-core==2.25.1
+google-auth==2.40.3
+google-cloud-appengine-logging==1.6.2
+google-cloud-audit-log==0.3.2
+google-cloud-bigquery==3.34.0
+google-cloud-core==2.4.3
+google-cloud-resource-manager==1.14.2
+google-cloud-storage==2.19.0
+google-crc32c==1.7.1
+google-genai==1.21.1
+google-resumable-media==2.7.2
+googleapis-common-protos==1.70.0
+grpc-google-iam-v1==0.14.2
+grpcio==1.73.0
+grpcio-status==1.73.0
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.6.4
+idna==3.10
+importlib_metadata==8.7.0
+iniconfig==2.1.0
+limits==4.2
+numpy==2.0.2
+oauthlib==3.3.1
+opentelemetry-api==1.34.1
+packaging==24.2
+pluggy==1.6.0
+proto-plus==1.26.1
+protobuf==6.31.1
+pyasn1==0.6.1
+pyasn1_modules==0.4.2
+pycparser==2.22
+pydantic_core==2.33.2
+Pygments==2.19.2
+python-dateutil==2.9.0.post0
+PyYAML==6.0.2
+requests-oauthlib==2.0.0
+rsa==4.9.1
+shapely==2.0.7
+six==1.17.0
+sniffio==1.3.1
+starlette==0.46.2
+tenacity==8.5.0
+tomli==2.2.1
+typing-inspection==0.4.1
+typing_extensions==4.14.0
+urllib3==2.5.0
+uvloop==0.21.0
+watchfiles==1.1.0
+wrapt==1.17.2
+zipp==3.23.0
