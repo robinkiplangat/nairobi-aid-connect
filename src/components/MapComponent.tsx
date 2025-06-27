@@ -13,6 +13,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+export interface ZoneStatusData {
+  lat: number;
+  lng: number;
+  status: 'danger' | 'moderate' | 'calm';
+  intensity: number;
+  name?: string; // Optional: for more detailed popups or labels
+}
+
 interface MapComponentProps {
   hotspots: MapHotspotData[];
   onMapClick: (coordinates: [number, number]) => void;
@@ -21,21 +29,8 @@ interface MapComponentProps {
   onAcceptRequest: (requestId: string) => void;
   isSelectingLocation?: boolean;
   mapIsInteractive?: boolean;
+  zoneData?: ZoneStatusData[]; // Make zoneData a prop
 }
-
-// Zone status data for heatmap
-const zoneData = [
-  { lat: -1.2921, lng: 36.8219, status: 'danger', intensity: 0.8 }, // CBD
-  { lat: -1.2676, lng: 36.8062, status: 'moderate', intensity: 0.6 }, // Westlands
-  { lat: -1.3133, lng: 36.7892, status: 'calm', intensity: 0.3 }, // Kibera
-  { lat: -1.2632, lng: 36.8103, status: 'moderate', intensity: 0.5 }, // Parklands
-  { lat: -1.3031, lng: 36.8073, status: 'danger', intensity: 0.9 }, // Industrial Area
-  { lat: -1.2507, lng: 36.8673, status: 'calm', intensity: 0.2 }, // Gigiri
-  { lat: -1.2741, lng: 36.7540, status: 'moderate', intensity: 0.4 }, // Karen
-  { lat: -1.2195, lng: 36.8965, status: 'calm', intensity: 0.1 }, // Muthaiga
-  { lat: -1.3152, lng: 36.8302, status: 'danger', intensity: 0.7 }, // South B
-  { lat: -1.2841, lng: 36.8155, status: 'moderate', intensity: 0.5 }, // Hurlingham
-];
 
 export const MapComponent: React.FC<MapComponentProps> = ({
   hotspots,
@@ -45,6 +40,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   onAcceptRequest,
   isSelectingLocation = false,
   mapIsInteractive = true,
+  zoneData, // Destructure the new prop
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -82,6 +78,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     // Clear existing heatmap
     heatmapLayerRef.current.clearLayers();
 
+    if (!zoneData || zoneData.length === 0) {
+      // If no zoneData or empty, ensure heatmap layer is empty and do nothing further
+      return;
+    }
+
     zoneData.forEach((zone) => {
       const hexRadius = 0.008; // Adjust size of hexagons
       const hexPoints = [];
@@ -98,13 +99,13 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       let color, fillColor, opacity;
       switch (zone.status) {
         case 'danger':
-          color = '#dc2626';
-          fillColor = '#ef4444';
+          color = '#ea580c'; // orange-600
+          fillColor = '#f97316'; // orange-500
           opacity = 0.7;
           break;
         case 'moderate':
-          color = '#ea580c';
-          fillColor = '#f97316';
+          color = '#eab308'; // yellow-500
+          fillColor = '#facc15'; // yellow-400
           opacity = 0.6;
           break;
         case 'calm':
@@ -127,28 +128,39 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       });
 
       // Add popup with zone information
-      hexagon.bindPopup(`
+      const popupContent = `
         <div class="text-center">
-          <h3 class="font-semibold capitalize">${zone.status.replace('_', ' ')} Zone</h3>
-          <p class="text-sm text-gray-600">Status as of now</p>
+          <h3 class="font-semibold capitalize">${zone.name || zone.status.replace('_', ' ')} Zone</h3>
+          <p class="text-sm text-gray-600">Status: ${zone.status}</p>
+          <p class="text-sm text-gray-600">Intensity: ${zone.intensity.toFixed(1)}</p>
         </div>
-      `);
+      `;
+      hexagon.bindPopup(popupContent);
 
       heatmapLayerRef.current!.addLayer(hexagon);
     });
   };
 
-  // Toggle heatmap visibility
+  // Toggle heatmap visibility and update on data change
   useEffect(() => {
     if (!map.current || !heatmapLayerRef.current) return;
 
-    if (showHeatmap) {
-      createHeatmapLayer();
-      map.current.addLayer(heatmapLayerRef.current);
+    if (showHeatmap && zoneData && zoneData.length > 0) {
+      createHeatmapLayer(); // Rebuilds with current zoneData
+      if (!map.current.hasLayer(heatmapLayerRef.current)) {
+        map.current.addLayer(heatmapLayerRef.current);
+      }
     } else {
-      map.current.removeLayer(heatmapLayerRef.current);
+      // If not showing heatmap, or no data, ensure layer is removed
+      if (map.current.hasLayer(heatmapLayerRef.current)) {
+        map.current.removeLayer(heatmapLayerRef.current);
+      }
+      // If there's no data but showHeatmap is true, also clear the layer content
+      if (showHeatmap && (!zoneData || zoneData.length === 0)) {
+        heatmapLayerRef.current.clearLayers();
+      }
     }
-  }, [showHeatmap]);
+  }, [showHeatmap, zoneData]); // Add zoneData to dependency array
 
   useEffect(() => {
     if (!map.current) return;
@@ -281,11 +293,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 <span className="text-xs text-gray-700">Calm area</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                <div className="w-4 h-4 bg-yellow-400 rounded"></div>
                 <span className="text-xs text-gray-700">Moderate concern</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
+                <div className="w-4 h-4 bg-orange-500 rounded"></div>
                 <span className="text-xs text-gray-700">Danger</span>
               </div>
             </div>

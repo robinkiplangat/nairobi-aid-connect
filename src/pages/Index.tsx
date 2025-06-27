@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { MapComponent } from '@/components/MapComponent';
+import { MapComponent, ZoneStatusData } from '@/components/MapComponent'; // Import ZoneStatusData
 import { ActionPanel } from '@/components/ActionPanel';
 import { HelpRequestModal } from '@/components/HelpRequestModal';
 import { VolunteerModal } from '@/components/VolunteerModal';
@@ -49,6 +49,10 @@ const Index = () => {
 
   const notificationWs = useRef<WebSocket | null>(null);
 
+  // Mock zone data - this will be passed to MapComponent
+  // Later, this could be fetched from an API
+  const [currentZoneData, setCurrentZoneData] = useState<ZoneStatusData[]>([]);
+
   // Notification WebSocket useEffect (as before)
   useEffect(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -80,6 +84,33 @@ const Index = () => {
     return () => { if (notificationWs.current) notificationWs.current.close(); };
   }, [myLastRequestId, currentVolunteerId, currentUserRoleInChat, toast]);
 
+  useEffect(() => {
+    const fetchZoneData = () => {
+      fetch(apiUrl('/api/v1/map/zones'))
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then((data: ZoneStatusData[]) => {
+          setCurrentZoneData(data);
+        })
+        .catch(error => {
+          console.error('Failed to fetch zone data:', error);
+          toast({
+            title: 'Could not load zone data',
+            description: 'The heatmap may not be available.',
+            variant: 'destructive',
+          });
+        });
+    };
+
+    fetchZoneData(); // Fetch initially
+    const zoneInterval = setInterval(fetchZoneData, 60000); // Poll every 60 seconds
+
+    return () => clearInterval(zoneInterval); // Cleanup on unmount
+  }, [toast]);
 
   const handleMapClick = useCallback((coordinates: [number, number]) => {
     if (isSelectingLocation && showHelpModal && !isChatVisible) { // Ensure help modal is open for this action
@@ -222,7 +253,16 @@ const Index = () => {
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
       <div className="w-full md:w-3/5 lg:w-2/3 h-1/2 md:h-full">
-        <MapComponent hotspots={mapHotspots} onMapClick={handleMapClick} selectedLocation={selectedLocation} isVolunteer={isVolunteer} onAcceptRequest={handleAcceptRequest} isSelectingLocation={isSelectingLocation} mapIsInteractive={mapShouldBeInteractive} />
+        <MapComponent
+          hotspots={mapHotspots}
+          onMapClick={handleMapClick}
+          selectedLocation={selectedLocation}
+          isVolunteer={isVolunteer}
+          onAcceptRequest={handleAcceptRequest}
+          isSelectingLocation={isSelectingLocation}
+          mapIsInteractive={mapShouldBeInteractive}
+          zoneData={currentZoneData} // Pass the zoneData as a prop
+        />
       </div>
       <div className="w-full md:w-2/5 lg:w-1/3 h-1/2 md:h-full bg-white shadow-lg flex flex-col overflow-y-auto">
         <ActionPanel onNeedHelp={handleNeedHelp} onProvideHelp={handleProvideHelp} isVolunteer={isVolunteer} />

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status
+from fastapi import FastAPI, HTTPException, Body, WebSocket, Request, Depends, Header, status, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -27,14 +27,14 @@ from agents.verification_agent import verification_agent
 from agents.dispatcher_agent import dispatcher_agent
 from agents.comms_agent import comms_agent, CommsAgent # CommsAgent class for static methods
 from agents.content_agent import content_agent
-from services.organization_service import organization_service
+from services.organization_service import organization_service, get_db
 from services.security import create_access_token, verify_access_token
 from models import database_models # For type hinting current_user
 
 app = FastAPI(
     title="SOS Nairobi Backend",
     description="Multi-agent system for coordinating emergency aid.",
-    version="0.1.0"
+    version="0.1.1"
 )
 
 # Security Middleware Configuration
@@ -58,7 +58,10 @@ def get_cors_origins():
     # Default origins for local development
     default_origins = [
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8080",
+        "http://localhost:8001",
     ]
     
     # Get origins from environment variable
@@ -347,10 +350,28 @@ async def get_resource_hub_content():
     try: return await content_agent.fetch_resources()
     except Exception as e: logger.error(f"Error in /resources: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/map/hotspots", response_model=List[schemas.MapHotspot], tags=["Map Data"])
+map_router = APIRouter(prefix="/api/v1/map", tags=["Map Data"])
+
+@map_router.get("/hotspots", response_model=List[schemas.MapHotspot])
 async def get_map_hotspots(limit: int = 200):
+    """
+    Returns a list of all current help request hotspots on the map.
+    """
     try: return await content_agent.fetch_active_hotspots(limit=limit)
     except Exception as e: logger.error(f"Error in /hotspots: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
+
+@map_router.get("/zones", response_model=List[schemas.ZoneStatus])
+def get_map_zones():
+    """
+    Returns all zone status data for the heatmap overlay.
+    """
+    db = get_db()
+    zones = list(db.zones.find({}, {"_id": 0}))  # Exclude MongoDB _id
+    if not zones:
+        raise HTTPException(status_code=404, detail="No zones found")
+    return zones
+
+app.include_router(map_router)
 
 # --- WebSocket Chat Endpoint ---
 from fastapi import WebSocket, WebSocketDisconnect
