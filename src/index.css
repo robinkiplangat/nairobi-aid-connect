@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -54,33 +55,34 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* From the new UI/UX plan */
+    --background: 222 47% 11%;    /* #1a233a */
+    --foreground: 210 29% 95%;    /* #f0f4f8 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 223 31% 22%;          /* #252e48 */
+    --card-foreground: 210 29% 95%; /* #f0f4f8 */
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 223 31% 22%;
+    --popover-foreground: 210 29% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 187 73% 65%;       /* #4dd0e1 */
+    --primary-foreground: 222 47% 11%; /* #1a233a */
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 222 27% 34%;      /* #3e4c6d */
+    --secondary-foreground: 210 29% 95%; /* #f0f4f8 */
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222 27% 34%;
+    --muted-foreground: 210 17% 69%; /* #a0aec0 */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 222 27% 34%;
+    --accent-foreground: 210 29% 95%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 358 89% 68%;   /* #f47174 */
+    --destructive-foreground: 210 29% 95%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 222 27% 34%;
+    --input: 222 27% 34%;
+    --ring: 187 73% 65%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -99,6 +101,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
   }
 }
 
@@ -148,3 +151,10 @@
   z-index: 10001 !important;
   position: fixed !important;
 }
+
+.light-bg-image {
+    background-image: linear-gradient(rgba(248, 250, 252, 0.95), rgba(248, 250, 252, 0.95)), url('https://images.unsplash.com/photo-1570284613060-766c33850e79?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
