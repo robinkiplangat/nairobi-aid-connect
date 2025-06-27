@@ -30,8 +30,8 @@ class SecurityService:
         """Get allowed origins for CORS."""
         if settings.APP_ENV == "production":
             return [
-                "https://nairobi-aid-connect.vercel.app",
-                "https://nairobi-aid-connect.vercel.app/",
+                "https://sos-nairobi.space",
+                "https://www.sos-nairobi.space",
             ]
         else:
             return [
@@ -290,7 +290,7 @@ class SecurityService:
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "font-src 'self' data:; "
-                "connect-src 'self' https://nairobi-aid-connect.onrender.com; "
+                "connect-src 'self' https://api.sos-nairobi.space; "
                 "frame-ancestors 'none'; "
                 "base-uri 'self'; "
                 "form-action 'self'"
@@ -302,7 +302,7 @@ class SecurityService:
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "font-src 'self' data:; "
-                "connect-src 'self' http://localhost:* https://nairobi-aid-connect.onrender.com; "
+                "connect-src 'self' http://localhost:* https://api.sos-nairobi.space; "
                 "frame-ancestors 'none'; "
                 "base-uri 'self'; "
                 "form-action 'self'"
