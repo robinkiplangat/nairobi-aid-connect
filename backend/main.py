@@ -205,50 +205,80 @@ if settings.SENTRY_DSN:
 @app.on_event("startup")
 async def startup_event():
     logger.info("Application startup: Connecting to services...")
+    
+    # MongoDB Connection
     try:
-        await db_service.connect_to_mongo()
-        logger.info("Successfully connected to MongoDB.")
+        if settings.MONGODB_URI and settings.MONGODB_URI != "mongodb://localhost:27017/":
+            await db_service.connect_to_mongo()
+            logger.info("Successfully connected to MongoDB.")
+        else:
+            logger.warning("MongoDB URI not configured. Skipping MongoDB connection.")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB on startup: {e}", exc_info=True)
+        logger.warning("Application will continue without MongoDB connection.")
 
+    # Redis Connection
     try:
-        await message_bus_service.connect()
-        logger.info("Successfully connected to Message Bus (Redis).")
+        if settings.REDIS_HOST and settings.REDIS_HOST != "localhost":
+            await message_bus_service.connect()
+            logger.info("Successfully connected to Message Bus (Redis).")
+        else:
+            logger.warning("Redis host not configured. Skipping Redis connection.")
     except Exception as e:
         logger.error(f"Failed to connect to Message Bus on startup: {e}", exc_info=True)
+        logger.warning("Application will continue without Redis connection.")
 
+    # Agent Listeners (only if Redis is available)
     agent_listeners_started = True
-    try:
-        logger.info("Starting DispatcherAgent listeners...")
-        await dispatcher_agent.start_listening()
-    except Exception as e:
-        logger.error(f"Failed to start DispatcherAgent listeners: {e}", exc_info=True); agent_listeners_started = False
+    if message_bus_service.redis_client:
+        try:
+            logger.info("Starting DispatcherAgent listeners...")
+            await dispatcher_agent.start_listening()
+        except Exception as e:
+            logger.error(f"Failed to start DispatcherAgent listeners: {e}", exc_info=True)
+            agent_listeners_started = False
 
-    try:
-        logger.info("Starting CommsAgent listeners...")
-        await comms_agent.start_listening()
-    except Exception as e:
-        logger.error(f"Failed to start CommsAgent listeners: {e}", exc_info=True); agent_listeners_started = False
+        try:
+            logger.info("Starting CommsAgent listeners...")
+            await comms_agent.start_listening()
+        except Exception as e:
+            logger.error(f"Failed to start CommsAgent listeners: {e}", exc_info=True)
+            agent_listeners_started = False
 
-    if not agent_listeners_started: logger.warning("One or more agent listeners failed to start.")
+        if not agent_listeners_started:
+            logger.warning("One or more agent listeners failed to start.")
+    else:
+        logger.warning("Redis not available. Skipping agent listeners.")
 
-    if intake_agent.streaming_client:
+    # Twitter Monitoring (only if configured)
+    if settings.ENABLE_TWITTER_MONITORING and intake_agent.streaming_client:
         logger.info("Creating task for Twitter monitoring...")
         intake_agent._twitter_monitoring_task = asyncio.create_task(intake_agent.start_twitter_monitoring())
     else:
-        logger.info("Twitter monitoring not started (client not available).")
+        logger.info("Twitter monitoring not started (disabled or client not available).")
 
-    app.state.redis_notification_listener_task = asyncio.create_task(redis_notification_listener())
-    logger.info("Redis notification listener task created and started.")
+    # Redis Notification Listener (only if Redis is available)
+    if message_bus_service.redis_client:
+        app.state.redis_notification_listener_task = asyncio.create_task(redis_notification_listener())
+        logger.info("Redis notification listener task created and started.")
+    else:
+        logger.warning("Redis not available. Skipping notification listener.")
+    
     logger.info("Application startup complete.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Application shutdown: Disconnecting from services...")
-    if intake_agent.streaming_client and intake_agent._twitter_monitoring_task:
+    
+    # Stop Twitter monitoring if it was started
+    if hasattr(intake_agent, '_twitter_monitoring_task') and intake_agent._twitter_monitoring_task:
         logger.info("Stopping Twitter monitoring...")
-        await intake_agent.stop_twitter_monitoring()
+        try:
+            await intake_agent.stop_twitter_monitoring()
+        except Exception as e:
+            logger.error(f"Error stopping Twitter monitoring: {e}", exc_info=True)
 
+    # Stop Redis notification listener if it was started
     if hasattr(app.state, "redis_notification_listener_task") and app.state.redis_notification_listener_task:
         logger.info("Stopping Redis notification listener task...")
         app.state.redis_notification_listener_task.cancel()
@@ -258,14 +288,22 @@ async def shutdown_event():
             logger.info("Redis notification listener task successfully cancelled.")
         except Exception as e:
             logger.error(f"Error during Redis listener task shutdown: {e}", exc_info=True)
+    
+    # Disconnect from services if they were connected
     try:
-        await message_bus_service.disconnect()
+        if message_bus_service.redis_client:
+            await message_bus_service.disconnect()
+            logger.info("Message Bus disconnected.")
     except Exception as e:
         logger.error(f"Error disconnecting Message Bus: {e}", exc_info=True)
+    
     try:
-        await db_service.close_mongo_connection()
+        if db_service.client:
+            await db_service.close_mongo_connection()
+            logger.info("MongoDB disconnected.")
     except Exception as e:
         logger.error(f"Error disconnecting MongoDB: {e}", exc_info=True)
+    
     logger.info("Application shutdown complete.")
 
 # API Endpoints
