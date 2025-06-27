@@ -92,9 +92,12 @@ if settings.APP_ENV == "production":
     app.add_middleware(
         TrustedHostMiddleware, 
         allowed_hosts=[
-            "nairobi-aid-connect.onrender.com",
+            "api.sos-nairobi.space",
+            "sos-nairobi.space",
+            "www.sos-nairobi.space",
             "localhost",
-            "127.0.0.1"
+            "127.0.0.1",
+            "nairobi-aid-connect.onrender.com"
         ]
     )
     
