@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,14 +12,14 @@ interface CaseListProps {
 
 const CaseList = ({ cases, selectedCase, onSelectCase }: CaseListProps) => {
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border-gray-200/50">
+    <Card className="bg-white/90 dark:bg-card/90 backdrop-blur-sm border-gray-200/50 dark:border-border">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-gray-900">Active Cases</CardTitle>
-        <CardDescription className="text-gray-600">Manage emergency requests and volunteer assignments</CardDescription>
+        <CardTitle className="text-lg font-semibold text-gray-900 dark:text-foreground">Active Cases</CardTitle>
+        <CardDescription className="text-gray-600 dark:text-muted-foreground">Manage emergency requests and volunteer assignments</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="bg-gray-50/80">
+          <TabsList className="bg-gray-50/80 dark:bg-background/80">
             <TabsTrigger value="all">All Cases</TabsTrigger>
             <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>

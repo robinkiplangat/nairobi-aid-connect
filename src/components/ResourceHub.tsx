@@ -66,10 +66,10 @@ export const ResourceHub: React.FC = () => {
           Resource Hub
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent className="w-[400px] sm:w-[540px] bg-white dark:bg-card">
         <SheetHeader>
-          <SheetTitle>Resource Hub</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="dark:text-foreground">Resource Hub</SheetTitle>
+          <SheetDescription className="dark:text-muted-foreground">
             Essential information and emergency contacts for Nairobi
           </SheetDescription>
         </SheetHeader>
@@ -78,14 +78,14 @@ export const ResourceHub: React.FC = () => {
           <div className="space-y-6">
             {/* Emergency Contacts */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Emergency Contacts</h3>
+              <h3 className="text-lg font-semibold mb-3 dark:text-foreground">Emergency Contacts</h3>
               <div className="space-y-2">
                 {emergencyContacts.map((contact, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium">{contact.name}</span>
+                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-background/50 rounded-lg">
+                    <span className="font-medium dark:text-foreground">{contact.name}</span>
                     <a
                       href={`tel:${contact.number}`}
-                      className="text-blue-600 hover:text-blue-800 font-mono"
+                      className="text-blue-600 dark:text-primary hover:text-blue-800 dark:hover:text-primary/90 font-mono"
                     >
                       {contact.number}
                     </a>
@@ -96,12 +96,12 @@ export const ResourceHub: React.FC = () => {
 
             {/* Safety Tips */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Safety Tips</h3>
+              <h3 className="text-lg font-semibold mb-3 dark:text-foreground">Safety Tips</h3>
               <div className="space-y-2">
                 {safetyTips.map((tip, index) => (
-                  <div key={index} className="flex items-start p-3 bg-blue-50 rounded-lg">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span className="text-sm">{tip}</span>
+                  <div key={index} className="flex items-start p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
+                    <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                    <span className="text-sm dark:text-blue-300">{tip}</span>
                   </div>
                 ))}
               </div>
@@ -109,12 +109,12 @@ export const ResourceHub: React.FC = () => {
 
             {/* First Aid Basics */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">First Aid Basics</h3>
+              <h3 className="text-lg font-semibold mb-3 dark:text-foreground">First Aid Basics</h3>
               <div className="space-y-2">
                 {firstAidBasics.map((step, index) => (
-                  <div key={index} className="flex items-start p-3 bg-red-50 rounded-lg">
-                    <span className="text-red-600 mr-2 font-bold">{index + 1}.</span>
-                    <span className="text-sm">{step}</span>
+                  <div key={index} className="flex items-start p-3 bg-red-50 dark:bg-red-500/10 rounded-lg">
+                    <span className="text-red-600 dark:text-red-400 mr-2 font-bold">{index + 1}.</span>
+                    <span className="text-sm dark:text-red-300">{step}</span>
                   </div>
                 ))}
               </div>
@@ -122,9 +122,9 @@ export const ResourceHub: React.FC = () => {
 
             {/* Legal Rights */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Know Your Rights</h3>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <ul className="text-sm space-y-2">
+              <h3 className="text-lg font-semibold mb-3 dark:text-foreground">Know Your Rights</h3>
+              <div className="bg-green-50 dark:bg-green-500/10 p-4 rounded-lg">
+                <ul className="text-sm dark:text-green-300 space-y-2">
                   <li>• Right to peaceful assembly and demonstration</li>
                   <li>• Right to remain silent if detained</li>
                   <li>• Right to legal representation</li>
