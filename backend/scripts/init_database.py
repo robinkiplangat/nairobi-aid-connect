@@ -11,14 +11,15 @@ from datetime import datetime, timedelta
 import uuid
 import pymongo
 
-# Add the parent directory to the path so we can import our modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Relative imports for use within the main application
+from ..services.config import settings
+from ..models.database_models import MONGODB_INDEXES, REDIS_CONFIG
+from ..models.schemas import Coordinates, NewHelpRequest, Volunteer, Resource, Update, DemoData, Records
 
+# Use motor_asyncio for the script as well
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
-from services.config import settings
-from models.database_models import MONGODB_INDEXES, REDIS_CONFIG
-from models.schemas import Coordinates, NewHelpRequest, Volunteer, Resource, Update, DemoData, Records
+
 
 async def init_mongodb():
     """Initialize MongoDB collections and indexes"""
@@ -209,34 +210,13 @@ async def populate_sample_data(db):
         {
             "name": "Resource Hub Data",
             "emergency_contacts": [
-                {
-                    "name": "Law Society of Kenya (LSK)",
-                    "number": "0800720434"
-                },
-                {
-                    "name": "Defenders Coalition",
-                    "number": "0716200100"
-                },
-                {
-                    "name": "Independent Medico-Legal Unit (IMLU)",
-                    "number": "0706162795 / 0800720627"
-                },
-                {
-                    "name": "Kenya National Commission on Human Rights (KNCHR)",
-                    "number": "08007260627"
-                },
-                {
-                    "name": "Amnesty International Kenya",
-                    "number": "0759464346"
-                },
-                {
-                    "name": "Civic Freedoms Forum",
-                    "number": "07283033864"
-                },
-                {
-                    "name": "Kenya Human Rights Commission (KHRC)",
-                    "number": "0728606583"
-                }
+                {"name": "Law Society of Kenya (LSK)", "number": "0800720434"},
+                {"name": "Defenders Coalition", "number": "0716200100"},
+                {"name": "Independent Medico-Legal Unit (IMLU)", "number": "0706162795 / 0800720627"},
+                {"name": "Kenya National Commission on Human Rights (KNCHR)", "number": "08007260627"},
+                {"name": "Amnesty International Kenya", "number": "0759464346"},
+                {"name": "Civic Freedoms Forum", "number": "07283033864"},
+                {"name": "Kenya Human Rights Commission (KHRC)", "number": "0728606583"}
             ],
             "safety_tips": [
                 'Stay hydrated and carry water with you',
@@ -354,21 +334,15 @@ async def main():
         
         print("✅ Database initialization completed successfully!")
         print("=" * 50)
-        print("📊 Summary:")
-        print("   • MongoDB collections and indexes created")
-        print("   • Sample data populated")
-        print("   • Redis configured and tested")
-        print()
-        print("🔗 Connection Details:")
-        print(f"   • MongoDB: {settings.MONGODB_URI}")
-        print(f"   • Database: {settings.MONGODB_DATABASE_NAME}")
-        print(f"   • Redis: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
-        print()
-        print("🎯 Ready for testing!")
         
     except Exception as e:
         print(f"❌ Initialization failed: {e}")
-        sys.exit(1)
+        # When run from main app, don't exit the whole process.
+        # The calling function in main.py will handle the exception.
+        raise
 
 if __name__ == "__main__":
+    # This block allows the script to be run directly for manual initialization
+    # It won't run when the `main` function is imported by another script.
+    print("Running script directly for manual initialization...")
     asyncio.run(main()) 
