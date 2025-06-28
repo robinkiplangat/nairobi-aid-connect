@@ -194,3 +194,6 @@ class OrganizationService:
 
 # Instantiate the service
 organization_service = OrganizationService()
+
+def get_db():
+    return db_service.get_db

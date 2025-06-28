@@ -6,7 +6,7 @@ from bson import ObjectId
 from .schemas import (
     Coordinates, NewHelpRequest, Volunteer, VolunteerStatus,
     MatchAssignment, ChatSessionEstablished, Resource, Update, MapHotspot,
-    MongoMapHotspot, Organization, OrganizationUser, OrganizationApiKey,
+    Organization, OrganizationUser, OrganizationApiKey,
     DemoData, Records
 )
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Sheet,
   SheetContent,
@@ -10,60 +10,54 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface EmergencyContact {
-  name: string;
-  number: string;
-}
-
-interface DemoData {
-  emergency_contacts: EmergencyContact[];
-  safety_tips: string[];
-  first_aid_basics: string[];
-  legal_rights: string[];
-}
-
 export const ResourceHub: React.FC = () => {
-  const [demoData, setDemoData] = useState<DemoData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const emergencyContacts = [
+    {
+      name: "Law Society of Kenya (LSK)",
+      number: "0800720434"
+    },
+    {
+      name: "Defenders Coalition",
+      number: "0716200100"
+    },
+    {
+      name: "Independent Medico-Legal Unit (IMLU)",
+      number: "0706162795 / 0800720627"
+    },
+    {
+      name: "Kenya National Commission on Human Rights (KNCHR)",
+      number: "08007260627"
+    },
+    {
+      name: "Amnesty International Kenya",
+      number: "0759464346"
+    },
+    {
+      name: "Civic Freedoms Forum",
+      number: "07283033864"
+    },
+    {
+      name: "Kenya Human Rights Commission (KHRC)",number: "0728606583"
+    }
+  ];
 
-  useEffect(() => {
-    const fetchDemoData = async () => {
-      try {
-        const response = await fetch('/api/demodata');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        // Assuming the API returns an array and we need the first element
-        setDemoData(data[0]);
-      } catch (e) {
-        if (e instanceof Error) {
-          setError(e.message);
-        } else {
-          setError('An unknown error occurred');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  const safetyTips = [
+    'Stay hydrated and carry water with you',
+    'Keep emergency contacts easily accessible',
+    'Stay in groups when possible',
+    'Avoid confrontational situations',
+    'Know the location of nearest safe zones',
+    'Keep your phone charged',
+  ];
 
-    fetchDemoData();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  if (!demoData) {
-    return <div>No data available.</div>;
-  }
-
-  const { emergency_contacts: emergencyContacts, safety_tips: safetyTips, first_aid_basics: firstAidBasics, legal_rights: legalRights } = demoData;
+  const firstAidBasics = [
+    'Check for responsiveness and breathing',
+    'Call for help immediately',
+    'Apply pressure to bleeding wounds',
+    'Do not move someone with potential spinal injury',
+    'Place unconscious but breathing person in recovery position',
+    'Learn CPR if possible',
+  ];
 
   return (
     <Sheet>
@@ -131,9 +125,11 @@ export const ResourceHub: React.FC = () => {
               <h3 className="text-lg font-semibold mb-3 dark:text-foreground">Know Your Rights</h3>
               <div className="bg-green-50 dark:bg-green-500/10 p-4 rounded-lg">
                 <ul className="text-sm dark:text-green-300 space-y-2">
-                  {legalRights.map((right, index) => (
-                    <li key={index}>• {right}</li>
-                  ))}
+                  <li>• Right to peaceful assembly and demonstration</li>
+                  <li>• Right to remain silent if detained</li>
+                  <li>• Right to legal representation</li>
+                  <li>• Right to medical attention if injured</li>
+                  <li>• Right to contact family/lawyer if arrested</li>
                 </ul>
               </div>
             </div>
