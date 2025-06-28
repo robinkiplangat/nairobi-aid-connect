@@ -225,3 +225,111 @@ from datetime import datetime
 # For `pytest-asyncio` to work, ensure it's installed and tests using async features are marked
 # or run with an appropriate event loop policy if not using `@pytest.mark.asyncio`.
 # Here, TestClient is sync, but the patched methods are async, so AsyncMock is crucial.
+
+# --- Mock data for new tests ---
+MOCK_DEMO_DATA = [
+    {
+        "name": "Resource Hub Data",
+        "emergency_contacts": [{"name": "LSK", "number": "0800720434"}],
+        "safety_tips": ["Stay hydrated"],
+        "first_aid_basics": ["Check responsiveness"],
+        "legal_rights": ["Right to assembly"]
+    }
+]
+
+MOCK_RECORDS_DATA = [
+    {"id": 1, "name": "Medical Supplies", "status": "Available", "quantity": 25, "location": "Nairobi CBD", "last_updated": "2 hours ago"},
+    {"id": 2, "name": "Emergency Vehicles", "status": "In Use", "quantity": 8, "location": "Westlands", "last_updated": "15 min ago"}
+]
+
+
+# --- Fixture for mocking db_service.get_db ---
+@pytest.fixture
+def mock_db_service_with_data():
+    """Mocks the database service to return predefined data for demodata and records."""
+    mock_db = AsyncMock()
+
+    # Mock for demodata collection
+    mock_demodata_collection = AsyncMock()
+    mock_demodata_cursor = AsyncMock()
+    mock_demodata_cursor.to_list = AsyncMock(return_value=MOCK_DEMO_DATA)
+    mock_demodata_collection.find = MagicMock(return_value=mock_demodata_cursor)
+
+    # Mock for records collection
+    mock_records_collection = AsyncMock()
+    mock_records_cursor = AsyncMock()
+    mock_records_cursor.to_list = AsyncMock(return_value=MOCK_RECORDS_DATA)
+    mock_records_collection.find = MagicMock(return_value=mock_records_cursor)
+
+    # Attach mock collections to the mock_db object
+    mock_db.demodata = mock_demodata_collection
+    mock_db.records = mock_records_collection
+
+    return mock_db
+
+
+# --- Tests for new endpoints ---
+
+@patch("backend.main.db_service.get_db")
+def test_get_demo_data_success(mock_get_db, test_client, mock_db_service_with_data):
+    """Test the /api/demodata endpoint successfully."""
+    mock_get_db.return_value = mock_db_service_with_data # Make get_db return our detailed mock
+
+    response = test_client.get("/api/demodata")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == len(MOCK_DEMO_DATA)
+    assert data[0]["name"] == MOCK_DEMO_DATA[0]["name"]
+    assert data[0]["emergency_contacts"][0]["name"] == MOCK_DEMO_DATA[0]["emergency_contacts"][0]["name"]
+    mock_get_db.assert_awaited_once() # Ensure get_db was called
+    mock_db_service_with_data.demodata.find.assert_called_once_with({})
+
+
+@patch("backend.main.db_service.get_db")
+def test_get_demo_data_db_exception(mock_get_db, test_client):
+    """Test /api/demodata when the database raises an exception."""
+    mock_get_db.side_effect = Exception("Database connection error")
+
+    response = test_client.get("/api/demodata")
+
+    assert response.status_code == 500
+    json_response = response.json()
+    assert "Failed to fetch demo data" in json_response["detail"]
+    # To be more precise, we can check for the original exception message if it's propagated
+    # For now, the generic message is checked.
+    mock_get_db.assert_awaited_once()
+
+
+@patch("backend.main.db_service.get_db")
+def test_get_records_success(mock_get_db, test_client, mock_db_service_with_data):
+    """Test the /api/records endpoint successfully."""
+    mock_get_db.return_value = mock_db_service_with_data
+
+    response = test_client.get("/api/records")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == len(MOCK_RECORDS_DATA)
+    assert data[0]["name"] == MOCK_RECORDS_DATA[0]["name"]
+    assert data[1]["quantity"] == MOCK_RECORDS_DATA[1]["quantity"]
+    mock_get_db.assert_awaited_once()
+    mock_db_service_with_data.records.find.assert_called_once_with({})
+
+
+@patch("backend.main.db_service.get_db")
+def test_get_records_db_exception(mock_get_db, test_client):
+    """Test /api/records when the database raises an exception."""
+    mock_get_db.side_effect = Exception("DB query failed")
+
+    response = test_client.get("/api/records")
+
+    assert response.status_code == 500
+    json_response = response.json()
+    assert "Failed to fetch records" in json_response["detail"]
+    mock_get_db.assert_awaited_once()
+
+# Need to import MagicMock for the mock_db_service_with_data fixture
+from unittest.mock import MagicMock

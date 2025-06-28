@@ -30,8 +30,10 @@ steps:
     - '0'
     - '--port'
     - '8000'
-    - '--set-env-vars'
-    - 'APP_ENV=production'
+    - '--env-vars-file'
+    - 'cloudrun-env-clean.yaml'
+    - '--set-secrets'
+    - 'JWT_SECRET_KEY=jwt-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,MONGODB_URI=mongodb-uri:latest,REDIS_PASSWORD=redis-password:latest'
 
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/sos-ke-triage/sos-ke-triage-backend' 

@@ -38,9 +38,9 @@ class DatabaseService:
             logger.info("MongoDB connection closed.")
 
     async def get_db(self) -> AsyncIOMotorDatabase:
-        if not self.db or not self.client:
+        if self.db is None or self.client is None:
             await self.connect_to_mongo()
-        if not self.db: # Should not happen if connect_to_mongo succeeded without error
+        if self.db is None: # Should not happen if connect_to_mongo succeeded without error
              raise ConnectionFailure("Database not initialized. Connection might have failed silently or was closed.")
         return self.db
 

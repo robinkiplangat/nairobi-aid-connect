@@ -32,6 +32,7 @@ class SecurityService:
             return [
                 "https://sos-nairobi.space",
                 "https://www.sos-nairobi.space",
+                "https://service.sos-nairobi.space",
             ]
         else:
             return [
@@ -290,7 +291,7 @@ class SecurityService:
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "font-src 'self' data:; "
-                "connect-src 'self' https://api.sos-nairobi.space; "
+                "connect-src 'self' https://service.sos-nairobi.space; "
                 "frame-ancestors 'none'; "
                 "base-uri 'self'; "
                 "form-action 'self'"

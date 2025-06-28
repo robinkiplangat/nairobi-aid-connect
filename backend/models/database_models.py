@@ -6,7 +6,8 @@ from bson import ObjectId
 from .schemas import (
     Coordinates, NewHelpRequest, Volunteer, VolunteerStatus,
     MatchAssignment, ChatSessionEstablished, Resource, Update, MapHotspot,
-    Organization, OrganizationUser, OrganizationApiKey
+    Organization, OrganizationUser, OrganizationApiKey,
+    DemoData, Records
 )
 
 # MongoDB ObjectId wrapper for Pydantic v2
@@ -119,6 +120,24 @@ class MongoOrganizationUser(OrganizationUser):
 
 class MongoOrganizationApiKey(OrganizationApiKey):
     mongo_db_id: Optional[PyObjectId] = Field(default=None, alias="_id")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
+class MongoDemoData(DemoData):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
+class MongoRecords(Records):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -273,6 +292,20 @@ MONGODB_INDEXES = {
         {
             "keys": [("request_type", 1)],
             "name": "request_type_index"
+        }
+    ],
+    "demodata": [
+        {
+            "keys": [("name", 1)],
+            "name": "demodata_name_index",
+            "unique": True
+        }
+    ],
+    "records": [
+        {
+            "keys": [("name", 1)],
+            "name": "records_name_index",
+            "unique": True
         }
     ]
 }

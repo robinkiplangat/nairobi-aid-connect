@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, validator
-from typing import Literal, Optional
+from pydantic import BaseModel, Field, validator, root_validator
+from typing import Literal, Optional, List
 from datetime import datetime
 import uuid
 import re
@@ -95,6 +95,13 @@ class DirectHelpRequestPayload(BaseModel):
     original_content: str = Field(..., min_length=10, max_length=1000) # Description of the request, e.g., "Direct app request for Medical aid"
     # Potentially user_id or some form of identification if users are logged in
     # user_id: Optional[str] = None
+
+    @root_validator(pre=True)
+    def check_location_is_provided(cls, values):
+        """Ensure either coordinates or location_text is provided."""
+        if not values.get("coordinates") and not values.get("location_text"):
+            raise ValueError("Either 'coordinates' or 'location_text' must be provided")
+        return values
 
     @validator('original_content')
     def sanitize_content(cls, v):
@@ -337,3 +344,17 @@ class ZoneStatus(BaseModel):
 
 class VolunteerVerificationRequest(BaseModel):
     verification_code: str
+
+class DemoData(BaseModel):
+    emergency_contacts: list[dict[str, str]]
+    safety_tips: list[str]
+    first_aid_basics: list[str]
+    legal_rights: list[str]
+
+class Records(BaseModel):
+    id: int
+    name: str
+    status: str
+    quantity: int
+    location: str
+    last_updated: str
