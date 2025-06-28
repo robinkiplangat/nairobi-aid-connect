@@ -87,7 +87,7 @@ The application uses a **multi-agent system** architecture with the following co
 Before running the application, ensure you have:
 
 - **Python 3.9+** installed
-- **Node.js 18+** and **npm** installed
+- **Node.js 20+** and **npm** installed
 - **MongoDB** (optional - for full functionality)
 - **Redis** (optional - for message bus and caching)
 
