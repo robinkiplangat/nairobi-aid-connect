@@ -24,7 +24,7 @@ const CaseDetails = ({ selectedCase, cases }: CaseDetailsProps) => {
     switch (priority) {
       case 'High': return 'destructive';
       case 'Medium': return 'secondary';
-      case 'Low': return 'outline';
+      case 'Low': return 'default';
       default: return 'outline';
     }
   };

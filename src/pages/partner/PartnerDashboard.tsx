@@ -27,10 +27,10 @@ const PartnerDashboard = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-red-100 text-red-700 border-red-200';
-      case 'Pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'Resolved': return 'bg-green-100 text-green-700 border-green-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'Active': return 'bg-red-100 text-red-700 border-red-200 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/20';
+      case 'Pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-400/10 dark:text-yellow-400 dark:border-yellow-400/20';
+      case 'Resolved': return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-500 dark:border-green-500/20';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-secondary dark:text-secondary-foreground dark:border-border';
     }
   };
 
@@ -169,7 +169,7 @@ const PartnerDashboard = () => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <Badge className={`font-medium border ${getStatusColor(case_.status)} dark:bg-opacity-10`}>
+                        <Badge className={`font-medium border ${getStatusColor(case_.status)}`}>
                           {case_.status}
                         </Badge>
                         <span className="text-sm text-gray-500 dark:text-muted-foreground">{case_.time}</span>

@@ -23,16 +23,16 @@ const CaseCard = ({ case_, isSelected, onClick }: CaseCardProps) => {
     switch (priority) {
       case 'High': return 'destructive';
       case 'Medium': return 'secondary';
-      case 'Low': return 'outline';
+      case 'Low': return 'default';
       default: return 'outline';
     }
   };
 
   return (
-    <div 
+    <div
       className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-        isSelected 
-          ? 'border border-blue-200 dark:border-primary bg-blue-50/50 dark:bg-primary/10 shadow-sm' 
+        isSelected
+          ? 'border border-blue-200 dark:border-primary bg-blue-50/50 dark:bg-primary/10 shadow-sm'
           : 'border border-gray-100/50 dark:border-border bg-gray-50/30 dark:bg-card/50 hover:bg-gray-50/50 dark:hover:bg-card/70 hover:border-gray-200/50 dark:hover:border-border'
       }`}
       onClick={onClick}
