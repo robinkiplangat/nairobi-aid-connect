@@ -89,16 +89,29 @@ app.add_middleware(
 
 # Trusted Host Middleware
 if settings.APP_ENV == "production":
-    app.add_middleware(
-        TrustedHostMiddleware, 
-        allowed_hosts=[
-            "api.sos-nairobi.space",
+    # Get trusted hosts from environment or use defaults
+    def get_trusted_hosts():
+        """Get trusted hosts from environment variables or use defaults."""
+        default_hosts = [
+            "service.sos-nairobi.space",
             "sos-nairobi.space",
             "www.sos-nairobi.space",
             "localhost",
             "127.0.0.1",
             "nairobi-aid-connect.onrender.com"
         ]
+        
+        # Add Cloud Run hostname pattern
+        cloud_run_hosts = [
+            "sos-ke-triage-backend-200139510593.europe-west1.run.app",
+            "*.run.app"  # Allow any Cloud Run service
+        ]
+        
+        return default_hosts + cloud_run_hosts
+    
+    app.add_middleware(
+        TrustedHostMiddleware, 
+        allowed_hosts=get_trusted_hosts()
     )
     
     # Force HTTPS in production
@@ -402,15 +415,19 @@ async def get_map_hotspots(limit: int = 200):
     except Exception as e: logger.error(f"Error in /hotspots: {e}", exc_info=True); raise HTTPException(status_code=500, detail=str(e))
 
 @map_router.get("/zones", response_model=List[schemas.ZoneStatus])
-def get_map_zones():
+async def get_map_zones():
     """
     Returns all zone status data for the heatmap overlay.
     """
-    db = get_db()
-    zones = list(db.zones.find({}, {"_id": 0}))  # Exclude MongoDB _id
-    if not zones:
-        raise HTTPException(status_code=404, detail="No zones found")
-    return zones
+    try:
+        db = await db_service.get_db()
+        zones = await db.zones.find({}, {"_id": 0}).to_list(length=None)  # Exclude MongoDB _id
+        if not zones:
+            raise HTTPException(status_code=404, detail="No zones found")
+        return zones
+    except Exception as e:
+        logger.error(f"Error fetching zones: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch zones data")
 
 app.include_router(map_router)
 

@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 FRONTEND_DOMAIN="sos-nairobi.space"
-BACKEND_DOMAIN="api.sos-nairobi.space"
+BACKEND_DOMAIN="service.sos-nairobi.space"
 FRONTEND_URL="https://${FRONTEND_DOMAIN}"
 BACKEND_URL="https://${BACKEND_DOMAIN}"
 
