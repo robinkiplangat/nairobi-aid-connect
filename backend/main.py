@@ -10,6 +10,7 @@ import logging
 import asyncio
 import json
 import os
+from slowapi.errors import RateLimitExceeded
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -44,7 +45,6 @@ if settings.ENABLE_RATE_LIMITING:
     try:
         from slowapi import Limiter, _rate_limit_exceeded_handler
         from slowapi.util import get_remote_address
-        from slowapi.errors import RateLimitExceeded
         
         limiter = Limiter(key_func=get_remote_address)
         app.state.limiter = limiter
@@ -325,18 +325,22 @@ async def shutdown_event():
 async def read_root(): return {"status": "SOS Nairobi Backend is running"}
 
 @app.post("/api/v1/request/direct", response_model=schemas.GenericResponse, tags=["Intake Agent"])
+@limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")
 async def submit_direct_request(request: Request, payload: schemas.DirectHelpRequestPayload = Body(...)):
-    # Apply rate limiting if enabled
-    if limiter and settings.ENABLE_RATE_LIMITING:
-        await limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")(lambda: None)()
-    
+    # The rate limiter is now handled by the decorator above.
+    # We no longer need the manual check here.
+
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"API /api/v1/request/direct received from {client_ip}: {payload.model_dump_json(indent=2)}")
     
     # Log security event
+    location_for_log = "none"
+    if payload.location_text:
+        location_for_log = payload.location_text[:50] + "..." if len(payload.location_text) > 50 else payload.location_text
+    
     log_security_event("direct_request", {
         "content_length": len(payload.original_content),
-        "location": payload.location_text[:50] + "..." if payload.location_text and len(payload.location_text) > 50 else (payload.location_text or "none")
+        "location": location_for_log
     }, client_ip)
     
     try:

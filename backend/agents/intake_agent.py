@@ -135,28 +135,23 @@ class IntakeAgent:
         logger.info(f"IntakeAgent processing direct request: {payload.model_dump_json(indent=2)}")
 
         # If direct request includes coordinates (e.g. from map pin drop), use them.
-        # This requires DirectHelpRequestPayload to be updated.
-        # For now, assuming it still relies on location_text for direct requests
-        # as per original plan, and backend geocodes it.
-        # Let's assume payload.coordinates is an Optional field for now.
-        # (Need to update schemas.DirectHelpRequestPayload)
-
-        # For demonstration, if coordinates are directly provided in payload (e.g. from a map click)
         if payload.coordinates:
             raw_coordinates = payload.coordinates
             logger.info(f"Using coordinates directly from payload: {raw_coordinates}")
+            # Set a default location_text if none provided
+            location_text = payload.location_text or "Location from map pin"
         elif payload.location_text: # Fallback to geocoding if coordinates are not provided but text is
             logger.info(f"No direct coordinates in payload, attempting to geocode location_text: '{payload.location_text}'")
             raw_coordinates = await self._stub_geocode_location(payload.location_text)
+            location_text = payload.location_text
         else:
             # This case should ideally be validated by Pydantic if at least one is required,
             # or handled gracefully. For now, default to a generic Nairobi location if neither is present.
             logger.warning("No coordinates or location_text provided in direct request. Defaulting location.")
             raw_coordinates = await self._stub_geocode_location("Nairobi")
-
+            location_text = "Nairobi"
 
         request_type = payload.request_type
-
         obfuscated_coordinates = self._obfuscate_location(raw_coordinates)
 
         new_request = schemas.NewHelpRequest(
@@ -164,7 +159,7 @@ class IntakeAgent:
             # timestamp is auto-generated
             source="direct_app",
             request_type=request_type, # type: ignore (Pydantic will validate Literal)
-            location_text=payload.location_text or "Location from map pin", # Use provided text or a default
+            location_text=location_text, # Use the determined location_text
             coordinates=obfuscated_coordinates,
             original_content=payload.original_content,
             status="pending"

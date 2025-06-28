@@ -100,4 +100,3 @@ def test_direct_help_request_payload_invalid_type():
     }
     with pytest.raises(ValidationError):
         DirectHelpRequestPayload(**payload_data)
-addAttribute("backend/tests/models/__init__.py")
