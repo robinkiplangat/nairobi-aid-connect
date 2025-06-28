@@ -42,13 +42,15 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   mapIsInteractive = true,
   zoneData, // Destructure the new prop
 }) => {
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  
+  console.log('MapComponent: zoneData length:', zoneData?.length || 0, 'showHeatmap:', showHeatmap);
+  
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const selectedMarkerRef = useRef<L.Marker | null>(null);
   const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
-  
-  const [showHeatmap, setShowHeatmap] = useState(false);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -266,27 +268,27 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       </div>
       
       {/* Heatmap Toggle and Legend */}
-      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+      <div className="absolute bottom-4 left-4 bg-white backdrop-blur-sm rounded-lg shadow-lg overflow-hidden border-2 border-blue-500 z-20">
         {/* Toggle Button */}
-        <div className="p-3 border-b border-gray-200">
+        <div className="p-3 border-b border-gray-200 bg-white">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className="flex items-center space-x-2 w-full justify-start"
+            className="flex items-center space-x-2 w-full justify-start bg-gray-100 hover:bg-gray-200"
           >
             {showHeatmap ? (
               <ToggleRight className="h-4 w-4 text-blue-500" />
             ) : (
               <ToggleLeft className="h-4 w-4 text-gray-400" />
             )}
-            <span className="text-sm font-medium">Zone Status</span>
+            <span className="text-sm font-medium text-gray-800">Zone Status</span>
           </Button>
         </div>
         
         {/* Legend */}
         {showHeatmap && (
-          <div className="p-3">
+          <div className="p-3 bg-white">
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-500 rounded"></div>
