@@ -363,11 +363,10 @@ async def get_volunteer_from_token(authorization: Optional[str] = Header(None)) 
     return volunteer_id
 
 @app.post("/api/v1/volunteer/verify", response_model=schemas.GenericResponse, tags=["Verification Agent"])
+@limiter.limit("5/minute") # A slightly stricter limit for verification
 async def verify_volunteer(request: Request, payload: schemas.VolunteerVerificationPayload = Body(...)):
-    # Apply rate limiting if enabled
-    if limiter and settings.ENABLE_RATE_LIMITING:
-        await limiter.limit("3/minute")(lambda: None)()
-    
+    # The rate limiter is now handled by the decorator above.
+
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"API /api/v1/volunteer/verify received from {client_ip}: {payload.model_dump_json(indent=2)}")
     
