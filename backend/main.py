@@ -10,6 +10,7 @@ import logging
 import asyncio
 import json
 import os
+from slowapi.errors import RateLimitExceeded
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ security_logger = logging.getLogger('security')
 security_logger.setLevel(logging.INFO)
 
 from models import schemas
+from models.database_models import MongoDemoData, MongoRecords
 from services.database import db_service
 from services.message_bus import message_bus_service
 from services.config import settings
@@ -43,7 +45,6 @@ if settings.ENABLE_RATE_LIMITING:
     try:
         from slowapi import Limiter, _rate_limit_exceeded_handler
         from slowapi.util import get_remote_address
-        from slowapi.errors import RateLimitExceeded
         
         limiter = Limiter(key_func=get_remote_address)
         app.state.limiter = limiter
@@ -324,18 +325,22 @@ async def shutdown_event():
 async def read_root(): return {"status": "SOS Nairobi Backend is running"}
 
 @app.post("/api/v1/request/direct", response_model=schemas.GenericResponse, tags=["Intake Agent"])
+@limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")
 async def submit_direct_request(request: Request, payload: schemas.DirectHelpRequestPayload = Body(...)):
-    # Apply rate limiting if enabled
-    if limiter and settings.ENABLE_RATE_LIMITING:
-        await limiter.limit(f"{settings.MAX_REQUESTS_PER_MINUTE}/minute")(lambda: None)()
-    
+    # The rate limiter is now handled by the decorator above.
+    # We no longer need the manual check here.
+
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"API /api/v1/request/direct received from {client_ip}: {payload.model_dump_json(indent=2)}")
     
     # Log security event
+    location_for_log = "none"
+    if payload.location_text:
+        location_for_log = payload.location_text[:50] + "..." if len(payload.location_text) > 50 else payload.location_text
+    
     log_security_event("direct_request", {
         "content_length": len(payload.original_content),
-        "location": payload.location_text[:50] + "..." if payload.location_text and len(payload.location_text) > 50 else (payload.location_text or "none")
+        "location": location_for_log
     }, client_ip)
     
     try:
@@ -358,11 +363,10 @@ async def get_volunteer_from_token(authorization: Optional[str] = Header(None)) 
     return volunteer_id
 
 @app.post("/api/v1/volunteer/verify", response_model=schemas.GenericResponse, tags=["Verification Agent"])
+@limiter.limit("5/minute") # A slightly stricter limit for verification
 async def verify_volunteer(request: Request, payload: schemas.VolunteerVerificationPayload = Body(...)):
-    # Apply rate limiting if enabled
-    if limiter and settings.ENABLE_RATE_LIMITING:
-        await limiter.limit("3/minute")(lambda: None)()
-    
+    # The rate limiter is now handled by the decorator above.
+
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"API /api/v1/volunteer/verify received from {client_ip}: {payload.model_dump_json(indent=2)}")
     
@@ -678,3 +682,33 @@ async def get_partner_resources(current_user: database_models.MongoOrganizationU
         message=f"Resources for organization {current_user.organization_id}.",
         details={"resources": []} # Placeholder
     )
+
+@app.get("/api/demodata", response_model=List[schemas.DemoData], tags=["Demo Data"])
+async def get_demo_data():
+    """
+    Fetches all demo data from the database.
+    """
+    try:
+        db = await db_service.get_db()
+        demodata_cursor = db.demodata.find({})
+        demodata_list = await demodata_cursor.to_list(length=None)
+        # Convert MongoDB documents to Pydantic models
+        return [schemas.DemoData(**item) for item in demodata_list]
+    except Exception as e:
+        logger.error(f"Error fetching demo data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch demo data")
+
+@app.get("/api/records", response_model=List[schemas.Records], tags=["Records"])
+async def get_records():
+    """
+    Fetches all records from the database.
+    """
+    try:
+        db = await db_service.get_db()
+        records_cursor = db.records.find({})
+        records_list = await records_cursor.to_list(length=None)
+        # Convert MongoDB documents to Pydantic models
+        return [schemas.Records(**item) for item in records_list]
+    except Exception as e:
+        logger.error(f"Error fetching records: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch records")

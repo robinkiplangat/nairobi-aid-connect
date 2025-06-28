@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 from services.config import settings
 from models.database_models import MONGODB_INDEXES, REDIS_CONFIG
-from models.schemas import Coordinates, NewHelpRequest, Volunteer, Resource, Update
+from models.schemas import Coordinates, NewHelpRequest, Volunteer, Resource, Update, DemoData, Records
 
 async def init_mongodb():
     """Initialize MongoDB collections and indexes"""
@@ -204,13 +204,83 @@ async def populate_sample_data(db):
         {"name": "Hurlingham", "lat": -1.2841, "lng": 36.8155, "status": "moderate", "intensity": 0.5},
     ]
     
+    # Sample demo data
+    demo_data = [
+        {
+            "name": "Resource Hub Data",
+            "emergency_contacts": [
+                {
+                    "name": "Law Society of Kenya (LSK)",
+                    "number": "0800720434"
+                },
+                {
+                    "name": "Defenders Coalition",
+                    "number": "0716200100"
+                },
+                {
+                    "name": "Independent Medico-Legal Unit (IMLU)",
+                    "number": "0706162795 / 0800720627"
+                },
+                {
+                    "name": "Kenya National Commission on Human Rights (KNCHR)",
+                    "number": "08007260627"
+                },
+                {
+                    "name": "Amnesty International Kenya",
+                    "number": "0759464346"
+                },
+                {
+                    "name": "Civic Freedoms Forum",
+                    "number": "07283033864"
+                },
+                {
+                    "name": "Kenya Human Rights Commission (KHRC)",
+                    "number": "0728606583"
+                }
+            ],
+            "safety_tips": [
+                'Stay hydrated and carry water with you',
+                'Keep emergency contacts easily accessible',
+                'Stay in groups when possible',
+                'Avoid confrontational situations',
+                'Know the location of nearest safe zones',
+                'Keep your phone charged',
+            ],
+            "first_aid_basics": [
+                'Check for responsiveness and breathing',
+                'Call for help immediately',
+                'Apply pressure to bleeding wounds',
+                'Do not move someone with potential spinal injury',
+                'Place unconscious but breathing person in recovery position',
+                'Learn CPR if possible',
+            ],
+            "legal_rights": [
+                'Right to peaceful assembly and demonstration',
+                'Right to remain silent if detained',
+                'Right to legal representation',
+                'Right to medical attention if injured',
+                'Right to contact family/lawyer if arrested',
+            ]
+        }
+    ]
+
+    # Sample records data
+    records_data = [
+        { "id": 1, "name": 'Medical Supplies', "status": 'Available', "quantity": 25, "location": 'Nairobi CBD', "last_updated": '2 hours ago' },
+        { "id": 2, "name": 'Emergency Vehicles', "status": 'In Use', "quantity": 8, "location": 'Westlands', "last_updated": '15 min ago' },
+        { "id": 3, "name": 'Communication Equipment', "status": 'Available', "quantity": 12, "location": 'Kibera', "last_updated": '1 hour ago' },
+        { "id": 4, "name": 'Legal Support Team', "status": 'Available', "quantity": 5, "location": 'City Center', "last_updated": '30 min ago' },
+    ]
+
     # Insert sample data
     collections_data = {
         "volunteers": volunteers_data,
         "help_requests": help_requests_data,
         "resources": resources_data,
         "updates": updates_data,
-        "zones": zones_data
+        "zones": zones_data,
+        "demodata": demo_data,
+        "records": records_data
     }
     
     for collection_name, data in collections_data.items():
