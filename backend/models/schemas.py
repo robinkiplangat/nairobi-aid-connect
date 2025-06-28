@@ -337,3 +337,17 @@ class ZoneStatus(BaseModel):
 
 class VolunteerVerificationRequest(BaseModel):
     verification_code: str
+
+class DemoData(BaseModel):
+    emergency_contacts: list[dict[str, str]]
+    safety_tips: list[str]
+    first_aid_basics: list[str]
+    legal_rights: list[str]
+
+class Records(BaseModel):
+    id: int
+    name: str
+    status: str
+    quantity: int
+    location: str
+    last_updated: str

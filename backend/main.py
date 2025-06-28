@@ -19,6 +19,7 @@ security_logger = logging.getLogger('security')
 security_logger.setLevel(logging.INFO)
 
 from models import schemas
+from models.database_models import MongoDemoData, MongoRecords
 from services.database import db_service
 from services.message_bus import message_bus_service
 from services.config import settings
@@ -678,3 +679,33 @@ async def get_partner_resources(current_user: database_models.MongoOrganizationU
         message=f"Resources for organization {current_user.organization_id}.",
         details={"resources": []} # Placeholder
     )
+
+@app.get("/api/demodata", response_model=List[schemas.DemoData], tags=["Demo Data"])
+async def get_demo_data():
+    """
+    Fetches all demo data from the database.
+    """
+    try:
+        db = await db_service.get_db()
+        demodata_cursor = db.demodata.find({})
+        demodata_list = await demodata_cursor.to_list(length=None)
+        # Convert MongoDB documents to Pydantic models
+        return [schemas.DemoData(**item) for item in demodata_list]
+    except Exception as e:
+        logger.error(f"Error fetching demo data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch demo data")
+
+@app.get("/api/records", response_model=List[schemas.Records], tags=["Records"])
+async def get_records():
+    """
+    Fetches all records from the database.
+    """
+    try:
+        db = await db_service.get_db()
+        records_cursor = db.records.find({})
+        records_list = await records_cursor.to_list(length=None)
+        # Convert MongoDB documents to Pydantic models
+        return [schemas.Records(**item) for item in records_list]
+    except Exception as e:
+        logger.error(f"Error fetching records: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch records")
