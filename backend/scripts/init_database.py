@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Database initialization script for SOS Nairobi
-Creates MongoDB collections, indexes, and sample data
+MongoDB Database Initialization Script
+Sets up collections and indices for the Nairobi Aid Connect platform
 """
 
 import asyncio
@@ -9,68 +9,113 @@ import sys
 import os
 from datetime import datetime, timedelta
 import uuid
-import pymongo
 
-# Relative imports for use within the main application
-from ..services.config import settings
-from ..models.database_models import MONGODB_INDEXES, REDIS_CONFIG
-from ..models.schemas import Coordinates, NewHelpRequest, Volunteer, Resource, Update, DemoData, Records
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Use motor_asyncio for the script as well
 from motor.motor_asyncio import AsyncIOMotorClient
-import redis.asyncio as redis
+from services.config import settings
 
 
 async def init_mongodb():
     """Initialize MongoDB collections and indexes"""
     print("🔧 Initializing MongoDB...")
-    
-    # Connect to MongoDB
+
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_DATABASE_NAME]
-    
+
     try:
-        # Test connection
-        await client.admin.command('ismaster')
+        await client.admin.command('ping')
         print(f"✅ Connected to MongoDB: {settings.MONGODB_DATABASE_NAME}")
-        
-        # Create collections and indexes
-        for collection_name, indexes in MONGODB_INDEXES.items():
+
+        collections_config = {
+            "help_requests": [
+                [("request_id", 1)],
+                [("timestamp", 1)],
+                [("status", 1)],
+                [("coordinates", "2dsphere")]
+            ],
+            "volunteers": [
+                [("volunteer_id", 1)],
+                [("is_verified", 1)],
+                [("status", 1)],
+                [("skills", 1)],
+                [("current_location", "2dsphere")],
+                [("last_seen", 1)]
+            ],
+            "assignments": [
+                [("assignment_id", 1)],
+                [("request_id", 1)],
+                [("volunteer_id", 1)],
+                [("timestamp", 1)]
+            ],
+            "chat_sessions": [
+                [("chat_room_id", 1)],
+                [("assignment_id", 1)],
+                [("created_at", 1)],
+                [("expires_at", 1)]
+            ],
+            "resources": [
+                [("resource_id", 1)],
+                [("category", 1)],
+                [("last_updated", 1)]
+            ],
+            "updates": [
+                [("update_id", 1)],
+                [("timestamp", 1)],
+                [("source", 1)]
+            ],
+            "organizations": [
+                [("organization_id", 1)],
+                [("organization_type", 1)],
+                [("is_verified", 1)],
+                [("created_at", 1)]
+            ],
+            "organization_users": [
+                [("user_id", 1)],
+                [("email", 1)],
+                [("organization_id", 1)],
+                [("role", 1)],
+                [("is_active", 1)]
+            ],
+            "api_keys": [
+                [("api_key_id", 1)],
+                [("organization_id", 1)],
+                [("is_active", 1)]
+            ],
+            "zones": [],
+            "demo_data": [],
+            "records": [[("id", 1)]]
+        }
+
+        for collection_name, indexes in collections_config.items():
             print(f"📋 Setting up collection: {collection_name}")
-            
-            # Create collection if it doesn't exist
+
             if collection_name not in await db.list_collection_names():
                 await db.create_collection(collection_name)
                 print(f"   ✅ Created collection: {collection_name}")
-            
-            # Create indexes
+
             collection = db[collection_name]
-            for index_config in indexes:
+            for index_spec in indexes:
                 try:
-                    await collection.create_index(
-                        index_config["keys"],
-                        name=index_config["name"],
-                        unique=index_config.get("unique", False),
-                        sparse=index_config.get("sparse", False)
-                    )
-                    print(f"   ✅ Created index: {index_config['name']}")
+                    await collection.create_index(index_spec)
+                    index_name = ", ".join([f"{k}({v})" for k, v in index_spec])
+                    print(f"   ✓ Index created: {index_name}")
                 except Exception as e:
-                    print(f"   ⚠️  Index {index_config['name']} already exists or error: {e}")
-        
-        # Populate with sample data
+                    print(f"   ⚠️  Index: {e}")
+
         await populate_sample_data(db)
-        
+
     except Exception as e:
         print(f"❌ MongoDB initialization failed: {e}")
         raise
     finally:
         client.close()
 
+
 async def populate_sample_data(db):
     """Populate database with sample data for testing"""
-    print("📝 Populating sample data...")
-    
-    # Sample volunteers
+    print("\n📝 Populating sample data...")
+
     volunteers_data = [
         {
             "volunteer_id": str(uuid.uuid4()),
@@ -82,8 +127,8 @@ async def populate_sample_data(db):
             "status": "available",
             "last_seen": datetime.utcnow(),
             "current_location": {
-                "lat": -1.2921,
-                "lng": 36.8219
+                "type": "Point",
+                "coordinates": [36.8219, -1.2921]
             }
         },
         {
@@ -96,8 +141,8 @@ async def populate_sample_data(db):
             "status": "available",
             "last_seen": datetime.utcnow(),
             "current_location": {
-                "lat": -1.2841,
-                "lng": 36.8155
+                "type": "Point",
+                "coordinates": [36.8155, -1.2841]
             }
         },
         {
@@ -110,13 +155,12 @@ async def populate_sample_data(db):
             "status": "available",
             "last_seen": datetime.utcnow(),
             "current_location": {
-                "lat": -1.2864,
-                "lng": 36.8172
+                "type": "Point",
+                "coordinates": [36.8172, -1.2864]
             }
         }
     ]
-    
-    # Sample help requests
+
     help_requests_data = [
         {
             "request_id": str(uuid.uuid4()),
@@ -125,8 +169,8 @@ async def populate_sample_data(db):
             "request_type": "Medical",
             "location_text": "Nairobi CBD, near Kenyatta Avenue",
             "coordinates": {
-                "lat": -1.2921,
-                "lng": 36.8219
+                "type": "Point",
+                "coordinates": [36.8219, -1.2921]
             },
             "original_content": "Need medical assistance for minor injury",
             "status": "pending"
@@ -138,46 +182,79 @@ async def populate_sample_data(db):
             "request_type": "Legal",
             "location_text": "Westlands, near Sarit Centre",
             "coordinates": {
-                "lat": -1.2841,
-                "lng": 36.8155
+                "type": "Point",
+                "coordinates": [36.8155, -1.2841]
             },
             "original_content": "Need legal advice regarding rights during protests",
             "status": "pending"
         }
     ]
-    
-    # Sample resources
+
     resources_data = [
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Basic First Aid Guide",
-            "content": "Essential first aid procedures for common injuries...",
+            "content": "Essential first aid procedures for common injuries. Includes CPR instructions, wound care, and emergency response protocols.",
             "category": "Medical Aid",
             "last_updated": datetime.utcnow()
         },
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Know Your Rights",
-            "content": "Legal rights and procedures during civil demonstrations...",
+            "content": "Legal rights and procedures during civil demonstrations. Information about detention rights, legal representation, and constitutional protections.",
             "category": "Legal Advice",
             "last_updated": datetime.utcnow()
         },
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Safe Zones in Nairobi",
-            "content": "List of designated safe zones and emergency shelters...",
+            "content": "List of designated safe zones and emergency shelters throughout Nairobi including hospitals, police stations, and community centers.",
             "category": "Shelter Locations",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Medical Emergency Hotlines",
+            "content": "Contact numbers for emergency medical services: Kenya Red Cross (0713-638-000), St. John Ambulance (0733-636-0000), Nairobi Hospital (4722 000).",
+            "category": "Medical Aid",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Mental Health Support",
+            "content": "Mental health resources and counseling services available in Nairobi. Including crisis hotlines and support centers for trauma and stress management.",
+            "category": "Health Services",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Women's Safety Resources",
+            "content": "Information on women's safety during emergencies, harassment reporting, and support services for gender-based violence victims.",
+            "category": "Safety",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Crowd Safety Guidelines",
+            "content": "Tips for staying safe in crowded areas including how to identify hazards, maintain group cohesion, and exit safely from gatherings.",
+            "category": "Safety",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Communication During Emergencies",
+            "content": "How to effectively communicate during emergencies, document incidents safely, and protect your privacy while reporting to authorities.",
+            "category": "Information",
             "last_updated": datetime.utcnow()
         }
     ]
-    
-    # Sample updates
+
     updates_data = [
         {
             "update_id": str(uuid.uuid4()),
             "title": "Road Closures Update",
             "summary": "Several roads in CBD are currently closed",
-            "full_content": "Moi Avenue, Kenyatta Avenue, and parts of Uhuru Highway are closed due to ongoing demonstrations.",
+            "full_content": "Moi Avenue, Kenyatta Avenue, and parts of Uhuru Highway are closed due to ongoing demonstrations. Use alternative routes via Harambee Avenue or Valley Road.",
             "timestamp": datetime.utcnow() - timedelta(hours=1),
             "source": "Official"
         },
@@ -185,164 +262,145 @@ async def populate_sample_data(db):
             "update_id": str(uuid.uuid4()),
             "title": "Medical Teams Deployed",
             "summary": "Additional medical teams have been deployed to CBD",
-            "full_content": "Red Cross and St. John Ambulance teams are now stationed at key locations in the city center.",
+            "full_content": "Red Cross and St. John Ambulance teams are now stationed at key locations in the city center including All Saints Cathedral and City Hall.",
             "timestamp": datetime.utcnow() - timedelta(minutes=30),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Safe Water Distribution",
+            "summary": "Clean water distribution points are active across the city",
+            "full_content": "Water distribution centers have been established at Central Park, Jeevanjee Gardens, and City Market. Free water is available for all residents.",
+            "timestamp": datetime.utcnow() - timedelta(minutes=15),
             "source": "Community Report"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Legal Aid Services Available",
+            "summary": "Free legal consultation services now available",
+            "full_content": "Law Society of Kenya and Defenders Coalition are providing free legal consultations at designated centers. No appointment needed. Operating hours 8 AM - 6 PM daily.",
+            "timestamp": datetime.utcnow() - timedelta(hours=2),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Shelter Centers Opened",
+            "summary": "Emergency shelters now operational in safe zones",
+            "full_content": "Multiple emergency shelter centers have opened with food, first aid, and communication facilities. Locations: KICC, Safari Park, and Starehe Boys Centre.",
+            "timestamp": datetime.utcnow() - timedelta(hours=3),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Mental Health Support Hotline",
+            "summary": "Mental health crisis support available 24/7",
+            "full_content": "Psychological support hotline is now operational. Call 0800-234-234 to speak with trained counselors. Services available in English and Swahili.",
+            "timestamp": datetime.utcnow() - timedelta(hours=4),
+            "source": "Health Service"
         }
     ]
-    
-    # Sample zones data for heatmap
+
     zones_data = [
         {"name": "CBD", "lat": -1.2921, "lng": 36.8219, "status": "danger", "intensity": 0.8},
         {"name": "Westlands", "lat": -1.2676, "lng": 36.8062, "status": "moderate", "intensity": 0.6},
         {"name": "Kibera", "lat": -1.3133, "lng": 36.7892, "status": "calm", "intensity": 0.3},
-        {"name": "Parklands", "lat": -1.2632, "lng": 36.8103, "status": "moderate", "intensity": 0.5},
-        {"name": "Industrial Area", "lat": -1.3031, "lng": 36.8073, "status": "danger", "intensity": 0.9},
-        {"name": "Gigiri", "lat": -1.2507, "lng": 36.8673, "status": "calm", "intensity": 0.2},
-        {"name": "Karen", "lat": -1.2741, "lng": 36.7540, "status": "moderate", "intensity": 0.4},
-        {"name": "Muthaiga", "lat": -1.2195, "lng": 36.8965, "status": "calm", "intensity": 0.1},
-        {"name": "South B", "lat": -1.3152, "lng": 36.8302, "status": "danger", "intensity": 0.7},
-        {"name": "Hurlingham", "lat": -1.2841, "lng": 36.8155, "status": "moderate", "intensity": 0.5},
     ]
-    
-    # Sample demo data
+
     demo_data = [
         {
-            "name": "Resource Hub Data",
             "emergency_contacts": [
                 {"name": "Law Society of Kenya (LSK)", "number": "0800720434"},
                 {"name": "Defenders Coalition", "number": "0716200100"},
-                {"name": "Independent Medico-Legal Unit (IMLU)", "number": "0706162795 / 0800720627"},
+                {"name": "Independent Medico-Legal Unit (IMLU)", "number": "0706162795"},
                 {"name": "Kenya National Commission on Human Rights (KNCHR)", "number": "08007260627"},
                 {"name": "Amnesty International Kenya", "number": "0759464346"},
                 {"name": "Civic Freedoms Forum", "number": "07283033864"},
-                {"name": "Kenya Human Rights Commission (KHRC)", "number": "0728606583"}
+                {"name": "Kenya Human Rights Commission (KHRC)", "number": "0728606583"},
+                {"name": "Kenya Red Cross Society", "number": "0713-638-000"},
+                {"name": "St. John Ambulance", "number": "0733-636-0000"},
+                {"name": "Nairobi Hospital Emergency", "number": "4722-000"},
+                {"name": "National Police Service", "number": "999 or 0721-666-999"},
             ],
             "safety_tips": [
-                'Stay hydrated and carry water with you',
-                'Keep emergency contacts easily accessible',
-                'Stay in groups when possible',
-                'Avoid confrontational situations',
-                'Know the location of nearest safe zones',
-                'Keep your phone charged',
+                "Stay hydrated and carry water with you",
+                "Keep emergency contacts easily accessible",
+                "Stay in groups when possible",
+                "Avoid confrontational situations",
+                "Know the location of nearest safe zones",
+                "Keep your phone charged",
+                "Save emergency numbers in your phone",
+                "Inform someone of your location and movements",
+                "Document incidents safely and securely",
+                "Use apps to share real-time location with trusted contacts"
             ],
             "first_aid_basics": [
-                'Check for responsiveness and breathing',
-                'Call for help immediately',
-                'Apply pressure to bleeding wounds',
-                'Do not move someone with potential spinal injury',
-                'Place unconscious but breathing person in recovery position',
-                'Learn CPR if possible',
+                "Check for responsiveness and breathing",
+                "Call for help immediately",
+                "Apply pressure to bleeding wounds",
+                "Do not move someone with potential spinal injury",
+                "Place unconscious but breathing person in recovery position",
+                "Learn CPR if possible",
+                "Keep first aid kit readily available",
+                "Stay calm and reassure the injured person",
+                "Remove the person from immediate danger if safe to do so",
+                "Monitor vital signs until help arrives"
             ],
             "legal_rights": [
-                'Right to peaceful assembly and demonstration',
-                'Right to remain silent if detained',
-                'Right to legal representation',
-                'Right to medical attention if injured',
-                'Right to contact family/lawyer if arrested',
+                "Right to peaceful assembly and demonstration",
+                "Right to remain silent if detained",
+                "Right to legal representation",
+                "Right to medical attention if injured",
+                "Right to contact family/lawyer if arrested",
+                "Right to know charges against you within 24 hours",
+                "Right to refuse searches without warrant",
+                "Right to interpreter services if needed",
+                "Right to file complaints against police misconduct",
+                "Right to dignity and humane treatment in custody"
             ]
         }
     ]
 
-    # Sample records data
     records_data = [
-        { "id": 1, "name": 'Medical Supplies', "status": 'Available', "quantity": 25, "location": 'Nairobi CBD', "last_updated": '2 hours ago' },
-        { "id": 2, "name": 'Emergency Vehicles', "status": 'In Use', "quantity": 8, "location": 'Westlands', "last_updated": '15 min ago' },
-        { "id": 3, "name": 'Communication Equipment', "status": 'Available', "quantity": 12, "location": 'Kibera', "last_updated": '1 hour ago' },
-        { "id": 4, "name": 'Legal Support Team', "status": 'Available', "quantity": 5, "location": 'City Center', "last_updated": '30 min ago' },
+        {"id": 1, "name": "Medical Supplies", "status": "Available", "quantity": 25, "location": "Nairobi CBD", "last_updated": "2 hours ago"},
+        {"id": 2, "name": "Emergency Vehicles", "status": "In Use", "quantity": 8, "location": "Westlands", "last_updated": "15 min ago"},
+        {"id": 3, "name": "Communication Equipment", "status": "Available", "quantity": 12, "location": "Kibera", "last_updated": "1 hour ago"},
+        {"id": 4, "name": "Legal Support Team", "status": "Available", "quantity": 5, "location": "City Center", "last_updated": "30 min ago"},
     ]
 
-    # Insert sample data
     collections_data = {
         "volunteers": volunteers_data,
         "help_requests": help_requests_data,
         "resources": resources_data,
         "updates": updates_data,
         "zones": zones_data,
-        "demodata": demo_data,
+        "demo_data": demo_data,
         "records": records_data
     }
-    
+
     for collection_name, data in collections_data.items():
         if data:
-            # Check if collection is empty
             count = await db[collection_name].count_documents({})
             if count == 0:
                 result = await db[collection_name].insert_many(data)
                 print(f"   ✅ Inserted {len(result.inserted_ids)} documents into {collection_name}")
             else:
-                print(f"   ⚠️  Collection {collection_name} already has data ({count} documents)")
+                print(f"   ⚠️  {collection_name} already has {count} documents, skipping...")
 
-async def init_redis():
-    """Initialize Redis with sample data"""
-    print("🔧 Initializing Redis...")
-    
-    try:
-        # Connect to Redis
-        redis_client = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=settings.REDIS_DB,
-            username=settings.REDIS_USERNAME,
-            password=settings.REDIS_PASSWORD,
-            decode_responses=True
-        )
-        
-        # Test connection
-        await redis_client.ping()
-        print(f"✅ Connected to Redis: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
-        
-        # Set up sample Redis data
-        sample_data = {
-            "requests:active": "5",
-            "map:hotspots": "3",
-            "system:status": "operational",
-            "last_update": datetime.utcnow().isoformat()
-        }
-        
-        for key, value in sample_data.items():
-            await redis_client.set(key, value, ex=REDIS_CONFIG["ttl"]["active_requests"])
-            print(f"   ✅ Set Redis key: {key}")
-        
-        # Test pub/sub
-        pubsub = redis_client.pubsub()
-        await pubsub.subscribe("test_channel")
-        await redis_client.publish("test_channel", "test_message")
-        await pubsub.unsubscribe("test_channel")
-        await pubsub.close()
-        print("   ✅ Redis pub/sub test successful")
-        
-    except Exception as e:
-        print(f"❌ Redis initialization failed: {e}")
-        raise
-    finally:
-        await redis_client.close()
 
 async def main():
     """Main initialization function"""
     print("🚀 Starting SOS Nairobi Database Initialization...")
-    print("=" * 50)
-    
+    print("=" * 60)
+
     try:
-        # Initialize MongoDB
         await init_mongodb()
-        print()
-        
-        # Initialize Redis
-        await init_redis()
-        print()
-        
-        print("✅ Database initialization completed successfully!")
-        print("=" * 50)
-        
+        print("\n✅ Database initialization completed successfully!")
+        print("=" * 60)
+
     except Exception as e:
-        print(f"❌ Initialization failed: {e}")
-        # When run from main app, don't exit the whole process.
-        # The calling function in main.py will handle the exception.
-        raise
+        print(f"\n❌ Initialization failed: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    # This block allows the script to be run directly for manual initialization
-    # It won't run when the `main` function is imported by another script.
-    print("Running script directly for manual initialization...")
-    asyncio.run(main()) 
+    asyncio.run(main())

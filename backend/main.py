@@ -40,18 +40,27 @@ app = FastAPI(
 )
 
 # Security Middleware Configuration
-limiter = None
+class NoOpLimiter:
+    """No-op limiter for when rate limiting is disabled."""
+    def limit(self, *args, **kwargs):
+        """Return a pass-through decorator that does nothing."""
+        def decorator(func):
+            return func
+        return decorator
+
+limiter = NoOpLimiter()
 if settings.ENABLE_RATE_LIMITING:
     try:
         from slowapi import Limiter, _rate_limit_exceeded_handler
         from slowapi.util import get_remote_address
-        
+
         limiter = Limiter(key_func=get_remote_address)
         app.state.limiter = limiter
         app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
         logger.info("Rate limiting enabled")
     except ImportError:
         logger.warning("slowapi not installed. Rate limiting disabled.")
+        limiter = NoOpLimiter()
 
 # CORS Configuration
 def get_cors_origins():
@@ -222,7 +231,7 @@ async def startup_event():
     
     # MongoDB Connection
     try:
-        if settings.MONGODB_URI and settings.MONGODB_URI != "mongodb://localhost:27017/":
+        if settings.MONGODB_URI:
             await db_service.connect_to_mongo()
             logger.info("Successfully connected to MongoDB.")
         else:
@@ -233,7 +242,7 @@ async def startup_event():
 
     # Redis Connection
     try:
-        if settings.REDIS_HOST and settings.REDIS_HOST != "localhost":
+        if settings.REDIS_HOST:
             await message_bus_service.connect()
             logger.info("Successfully connected to Message Bus (Redis).")
         else:
@@ -690,7 +699,7 @@ async def get_demo_data():
     """
     try:
         db = await db_service.get_db()
-        demodata_cursor = db.demodata.find({})
+        demodata_cursor = db.demo_data.find({})
         demodata_list = await demodata_cursor.to_list(length=None)
         # Convert MongoDB documents to Pydantic models
         return [schemas.DemoData(**item) for item in demodata_list]
