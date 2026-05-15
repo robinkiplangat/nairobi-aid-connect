@@ -194,22 +194,57 @@ async def populate_sample_data(db):
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Basic First Aid Guide",
-            "content": "Essential first aid procedures for common injuries...",
+            "content": "Essential first aid procedures for common injuries. Includes CPR instructions, wound care, and emergency response protocols.",
             "category": "Medical Aid",
             "last_updated": datetime.utcnow()
         },
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Know Your Rights",
-            "content": "Legal rights and procedures during civil demonstrations...",
+            "content": "Legal rights and procedures during civil demonstrations. Information about detention rights, legal representation, and constitutional protections.",
             "category": "Legal Advice",
             "last_updated": datetime.utcnow()
         },
         {
             "resource_id": str(uuid.uuid4()),
             "title": "Safe Zones in Nairobi",
-            "content": "List of designated safe zones and emergency shelters...",
+            "content": "List of designated safe zones and emergency shelters throughout Nairobi including hospitals, police stations, and community centers.",
             "category": "Shelter Locations",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Medical Emergency Hotlines",
+            "content": "Contact numbers for emergency medical services: Kenya Red Cross (0713-638-000), St. John Ambulance (0733-636-0000), Nairobi Hospital (4722 000).",
+            "category": "Medical Aid",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Mental Health Support",
+            "content": "Mental health resources and counseling services available in Nairobi. Including crisis hotlines and support centers for trauma and stress management.",
+            "category": "Health Services",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Women's Safety Resources",
+            "content": "Information on women's safety during emergencies, harassment reporting, and support services for gender-based violence victims.",
+            "category": "Safety",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Crowd Safety Guidelines",
+            "content": "Tips for staying safe in crowded areas including how to identify hazards, maintain group cohesion, and exit safely from gatherings.",
+            "category": "Safety",
+            "last_updated": datetime.utcnow()
+        },
+        {
+            "resource_id": str(uuid.uuid4()),
+            "title": "Communication During Emergencies",
+            "content": "How to effectively communicate during emergencies, document incidents safely, and protect your privacy while reporting to authorities.",
+            "category": "Information",
             "last_updated": datetime.utcnow()
         }
     ]
@@ -219,7 +254,7 @@ async def populate_sample_data(db):
             "update_id": str(uuid.uuid4()),
             "title": "Road Closures Update",
             "summary": "Several roads in CBD are currently closed",
-            "full_content": "Moi Avenue, Kenyatta Avenue, and parts of Uhuru Highway are closed due to ongoing demonstrations.",
+            "full_content": "Moi Avenue, Kenyatta Avenue, and parts of Uhuru Highway are closed due to ongoing demonstrations. Use alternative routes via Harambee Avenue or Valley Road.",
             "timestamp": datetime.utcnow() - timedelta(hours=1),
             "source": "Official"
         },
@@ -227,9 +262,41 @@ async def populate_sample_data(db):
             "update_id": str(uuid.uuid4()),
             "title": "Medical Teams Deployed",
             "summary": "Additional medical teams have been deployed to CBD",
-            "full_content": "Red Cross and St. John Ambulance teams are now stationed at key locations in the city center.",
+            "full_content": "Red Cross and St. John Ambulance teams are now stationed at key locations in the city center including All Saints Cathedral and City Hall.",
             "timestamp": datetime.utcnow() - timedelta(minutes=30),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Safe Water Distribution",
+            "summary": "Clean water distribution points are active across the city",
+            "full_content": "Water distribution centers have been established at Central Park, Jeevanjee Gardens, and City Market. Free water is available for all residents.",
+            "timestamp": datetime.utcnow() - timedelta(minutes=15),
             "source": "Community Report"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Legal Aid Services Available",
+            "summary": "Free legal consultation services now available",
+            "full_content": "Law Society of Kenya and Defenders Coalition are providing free legal consultations at designated centers. No appointment needed. Operating hours 8 AM - 6 PM daily.",
+            "timestamp": datetime.utcnow() - timedelta(hours=2),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Shelter Centers Opened",
+            "summary": "Emergency shelters now operational in safe zones",
+            "full_content": "Multiple emergency shelter centers have opened with food, first aid, and communication facilities. Locations: KICC, Safari Park, and Starehe Boys Centre.",
+            "timestamp": datetime.utcnow() - timedelta(hours=3),
+            "source": "Official"
+        },
+        {
+            "update_id": str(uuid.uuid4()),
+            "title": "Mental Health Support Hotline",
+            "summary": "Mental health crisis support available 24/7",
+            "full_content": "Psychological support hotline is now operational. Call 0800-234-234 to speak with trained counselors. Services available in English and Swahili.",
+            "timestamp": datetime.utcnow() - timedelta(hours=4),
+            "source": "Health Service"
         }
     ]
 
@@ -247,6 +314,12 @@ async def populate_sample_data(db):
                 {"name": "Independent Medico-Legal Unit (IMLU)", "number": "0706162795"},
                 {"name": "Kenya National Commission on Human Rights (KNCHR)", "number": "08007260627"},
                 {"name": "Amnesty International Kenya", "number": "0759464346"},
+                {"name": "Civic Freedoms Forum", "number": "07283033864"},
+                {"name": "Kenya Human Rights Commission (KHRC)", "number": "0728606583"},
+                {"name": "Kenya Red Cross Society", "number": "0713-638-000"},
+                {"name": "St. John Ambulance", "number": "0733-636-0000"},
+                {"name": "Nairobi Hospital Emergency", "number": "4722-000"},
+                {"name": "National Police Service", "number": "999 or 0721-666-999"},
             ],
             "safety_tips": [
                 "Stay hydrated and carry water with you",
@@ -254,7 +327,11 @@ async def populate_sample_data(db):
                 "Stay in groups when possible",
                 "Avoid confrontational situations",
                 "Know the location of nearest safe zones",
-                "Keep your phone charged"
+                "Keep your phone charged",
+                "Save emergency numbers in your phone",
+                "Inform someone of your location and movements",
+                "Document incidents safely and securely",
+                "Use apps to share real-time location with trusted contacts"
             ],
             "first_aid_basics": [
                 "Check for responsiveness and breathing",
@@ -262,14 +339,23 @@ async def populate_sample_data(db):
                 "Apply pressure to bleeding wounds",
                 "Do not move someone with potential spinal injury",
                 "Place unconscious but breathing person in recovery position",
-                "Learn CPR if possible"
+                "Learn CPR if possible",
+                "Keep first aid kit readily available",
+                "Stay calm and reassure the injured person",
+                "Remove the person from immediate danger if safe to do so",
+                "Monitor vital signs until help arrives"
             ],
             "legal_rights": [
                 "Right to peaceful assembly and demonstration",
                 "Right to remain silent if detained",
                 "Right to legal representation",
                 "Right to medical attention if injured",
-                "Right to contact family/lawyer if arrested"
+                "Right to contact family/lawyer if arrested",
+                "Right to know charges against you within 24 hours",
+                "Right to refuse searches without warrant",
+                "Right to interpreter services if needed",
+                "Right to file complaints against police misconduct",
+                "Right to dignity and humane treatment in custody"
             ]
         }
     ]

@@ -699,7 +699,7 @@ async def get_demo_data():
     """
     try:
         db = await db_service.get_db()
-        demodata_cursor = db.demodata.find({})
+        demodata_cursor = db.demo_data.find({})
         demodata_list = await demodata_cursor.to_list(length=None)
         # Convert MongoDB documents to Pydantic models
         return [schemas.DemoData(**item) for item in demodata_list]
